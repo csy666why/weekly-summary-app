@@ -590,3 +590,53 @@ function setupBlockMenu() {
 (function initBlocks() {
   setupBlockMenu();
 })();
+/* ================= 自定义块：添加按钮（追加到末尾） ================= */
+(function () {
+  var DEFS = {
+    text:      { label: "✎ 文本块",       title: "文本" },
+    daily:     { label: "📅 每日完成情况", title: "每日完成情况" },
+    checklist: { label: "✅ 清单",         title: "清单" },
+    summary:   { label: "📄 总结模板",     title: "总结模板" }
+  };
+
+  function addBlock(type) {
+    if (!state.current) return;
+    var n = (state.current.sections || []).length + 1;
+    var sec = {
+      id: newId(),
+      title: (DEFS[type] ? DEFS[type].title : "文本") + " " + n,
+      content: "",
+      type: type,
+      updatedAt: new Date().toISOString()
+    };
+    if (type === "summary") {
+      sec.type = "text";
+      sec.content = "（一）本周工作内容\n\n（二）收获与体会\n\n（三）下周计划";
+    }
+    state.current.sections.push(sec);
+    state.edited.sections[sec.id] = true;
+    renderSections();
+    renderTargets();
+    markDirty();
+  }
+
+  function ensureMenu() {
+    var box = $("sections");
+    if (!box) return;
+    if (document.getElementById("blockAddMenu")) return;
+    var menu = document.createElement("div");
+    menu.className = "block-add-menu";
+    menu.id = "blockAddMenu";
+    Object.keys(DEFS).forEach(function (k) {
+      var b = document.createElement("button");
+      b.className = "btn ghost block block-add-btn";
+      b.textContent = DEFS[k].label;
+      b.addEventListener("click", function () { addBlock(k); });
+      menu.appendChild(b);
+    });
+    box.parentNode.insertBefore(menu, box.nextSibling);
+    var old = $("btnAddSection");
+    if (old) old.style.display = "none";
+  }
+  ensureMenu();
+})();

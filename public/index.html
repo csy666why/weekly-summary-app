@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#04070d" />
+<title>每周小结助手 · WEEKLY·OS</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2304070d'/%3E%3Cpath d='M16 5l9 5v10l-9 5-9-5V10z' fill='none' stroke='%2322d3ee' stroke-width='2'/%3E%3Ccircle cx='16' cy='15' r='3.4' fill='%23fbbf24'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-glow" aria-hidden="true"></div>
+  <div class="bg-scan" aria-hidden="true"></div>
+
+  <!-- 顶栏 -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">◈</span>
+      <div class="brand-text">
+        <span class="brand-name">WEEKLY<span class="accent">·OS</span></span>
+        <span class="brand-sub">每周小结助手</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="conn-status" id="connStatus" title="实时同步状态">
+        <span class="led" id="connLed"></span>
+        <span id="connText">连接中…</span>
+      </div>
+      <div class="devices" id="devices" title="当前在线设备"></div>
+      <div class="space-chip hidden" id="spaceChip" title="当前数据空间"><span class="dot"></span><span id="spaceName">—</span><button class="icon-btn sm" id="btnSwitchSpace" title="切换空间">⇄</button></div>
+      <button class="btn ghost sm" id="btnDevices">🔐 设备<span class="badge hidden" id="pendingBadge">0</span></button>
+      <button class="btn ghost sm" id="btnPhone">⌗ 手机连接</button>
+      <button class="btn ghost sm" id="btnSettings">⚙ 设置</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- 左侧：周小结列表 -->
+    <aside class="sidebar" id="sidebar" aria-label="周小结列表">
+      <div class="sidebar-head">
+        <span class="micro-label mono">ARCHIVE // 周小结档案</span>
+        <button class="btn primary block" id="btnNew">＋ 新建周小结</button>
+      </div>
+      <div class="summary-list" id="summaryList"></div>
+      <div class="sidebar-foot">
+        <span class="micro-label mono" id="syncInfo">—</span>
+      </div>
+    </aside>
+
+    <!-- 中间：编辑器 -->
+    <section class="editor" id="editor">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-mark">◈</div>
+        <div class="empty-title">未选择周小结</div>
+        <div class="empty-sub">从左侧选择一份，或点击「＋ 新建周小结」开始</div>
+      </div>
+
+      <div class="editor-inner hidden" id="editorInner">
+        <div class="editor-head">
+          <div class="title-row">
+            <span class="week-badge mono" id="weekBadge">WEEK 01</span>
+            <input class="title-input" id="titleInput" placeholder="标题，如：第一周——砂处理小结" autocomplete="off" />
+          </div>
+          <div class="meta-row">
+            <label class="meta-field"><span>日期范围</span>
+              <input id="dateRangeInput" placeholder="如 8.17-8.23" autocomplete="off" />
+            </label>
+            <label class="meta-field"><span>主题</span>
+              <input id="topicInput" placeholder="如 砂处理 / 造型线" autocomplete="off" />
+            </label>
+          </div>
+          <div class="toolbar">
+            <span class="save-state" id="saveState"><span class="led led-ok"></span><span id="saveText">已保存</span></span>
+            <span class="spacer"></span>
+            <button class="btn ghost sm" id="btnImages">🖼 图片库</button>
+            <button class="btn ghost sm" id="btnPreview">👁 预览</button>
+            <button class="btn accent sm" id="btnExport">⬇ 导出 Word</button>
+            <button class="btn danger sm" id="btnDelete">删除</button>
+          </div>
+        </div>
+        <div class="sections" id="sections"></div>
+        <button class="btn ghost dashed block add-section" id="btnAddSection">＋ 添加板块</button>
+      </div>
+    </section>
+
+    <!-- 右侧：AI 面板 -->
+    <aside class="ai-panel" id="aiPanel" aria-label="AI 助手">
+      <div class="ai-panel-head">
+        <span class="micro-label mono">AI CO-PILOT // 智能生成</span>
+        <button class="icon-btn" id="btnAiToggle" title="收起/展开">»</button>
+      </div>
+      <div class="ai-body">
+        <div class="ai-block">
+          <div class="ai-block-title">原始记录 <span class="hint">手机/电脑随手记，AI 据此生成</span></div>
+          <textarea id="notesInput" spellcheck="false" placeholder="把这一周的随手记录粘到这里，例如：&#10;8.17 上午去现场看GF线混砂机，了解砂处理工艺流程&#10;8.18 学了覆膜砂成分：石英砂94~96%、酚醛树脂2~4%…&#10;8.19 测混砂加水时间，做了取样检测表…"></textarea>
+          <div class="ai-block-foot"><span class="mono" id="notesCount">0 字</span><button class="link-btn" id="btnClearNotes">清空</button></div>
+        </div>
+
+        <div class="ai-block">
+          <div class="ai-block-title">生成指令</div>
+          <select id="modeSelect">
+            <option value="generate" selected>✨ 生成完整小结（工作内容+收获+计划）</option>
+            <option value="content">📋 只生成「工作内容」</option>
+            <option value="insight">💡 只生成「收获与体会」</option>
+            <option value="plan">🎯 只生成「下周计划」</option>
+            <option value="polish">🪄 润色现有小结</option>
+            <option value="expand">📖 扩写（更充实）</option>
+            <option value="condense">✂️ 精简（保留要点）</option>
+            <option value="free">💬 自由对话</option>
+          </select>
+          <div class="ai-actions">
+            <button class="btn primary block" id="btnGenerate">⚡ 开始生成</button>
+            <button class="btn ghost block hidden" id="btnStop">■ 停止生成</button>
+          </div>
+        </div>
+
+        <div class="ai-block result">
+          <div class="ai-block-title">生成结果 <span class="status-chip hidden" id="resultStatus"></span></div>
+          <textarea id="resultInput" spellcheck="false" placeholder="AI 生成的内容会流式显示在这里，可手动修改后应用…"></textarea>
+          <div class="ai-block-foot"><span class="mono" id="resultCount">0 字</span></div>
+        </div>
+
+        <div class="ai-block apply">
+          <div class="ai-block-title">应用到板块</div>
+          <select id="targetSelect"></select>
+          <div class="ai-actions">
+            <button class="btn accent block" id="btnApply">⇩ 插入到目标板块（追加）</button>
+            <button class="btn ghost block" id="btnReplace">⇄ 替换目标板块</button>
+            <button class="btn ghost block" id="btnCopy">⧉ 复制结果</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+    <button class="ai-reopen" id="btnAiReopen" title="展开 AI 面板">⚡ AI</button>
+  <div class="scrim" id="scrim"></div>
+</main>
+
+  <!-- 手机端底部导航 -->
+  <nav class="tabbar" id="tabbar" aria-label="移动端导航">
+    <button class="tab" data-tab="list"><span class="tab-ico">▤</span><span>列表</span></button>
+    <button class="tab active" data-tab="edit"><span class="tab-ico">✎</span><span>编辑</span></button>
+    <button class="tab" data-tab="ai"><span class="tab-ico">⚡</span><span>AI</span></button>
+    <button class="tab" data-tab="phone"><span class="tab-ico">⌗</span><span>连接</span></button>
+  </nav>
+
+  <!-- 设置弹窗 -->
+  <div class="modal-backdrop hidden" id="settingsModal">
+    <div class="modal">
+      <div class="modal-head">
+        <span class="micro-label mono">SETTINGS // 系统设置</span>
+        <button class="icon-btn" data-close="settingsModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="settings-group">
+          <div class="group-title">个人信息</div>
+          <label class="field"><span>姓名</span><input id="cfgName" placeholder="陈思源" autocomplete="off" /></label>
+          <label class="field"><span>部门 / 车间</span><input id="cfgDept" placeholder="如：庆铃铸造·技术中心" autocomplete="off" /></label>
+          <label class="field"><span>服务端口</span><input id="cfgPort" type="number" placeholder="8080" /></label>
+          <label class="field" id="cfgPublicURLField"><span>外网地址</span><input id="cfgPublicURL" placeholder="https://你的域名（云端部署时填）" autocomplete="off" /></label>
+          <p class="field-hint">修改端口需重启服务生效；外网地址用于云端部署后二维码/地址显示。</p>
+        </div>
+        <div class="settings-group" id="accessGroup">
+          <div class="group-title">访问控制</div>
+          <label class="field"><span>启用访问控制</span><input type="checkbox" id="cfgAccessEnabled" /></label>
+          <label class="field"><span>允许创建新空间</span><input type="checkbox" id="cfgAllowNewSpaces" /></label>
+          <p class="field-hint">开启后，每位使用者可创建自己的独立空间（数据互不可见）；关闭则只能加入已有空间。</p>
+          <div class="ai-actions">
+            <button class="btn ghost block" id="btnManageDevices">🔐 设备授权管理</button>
+          </div>
+        </div>
+        <div class="settings-group" id="aiSettingsGroup">
+          <div class="group-title">AI 接口（OpenAI 兼容）</div>
+          <label class="field"><span>服务商</span>
+            <select id="cfgProvider">
+              <option value="deepseek">DeepSeek 深度求索</option>
+              <option value="openai">OpenAI</option>
+              <option value="moonshot">Kimi (Moonshot)</option>
+              <option value="qwen">通义千问 (DashScope)</option>
+              <option value="glm">智谱 GLM</option>
+              <option value="siliconflow">硅基流动 SiliconFlow</option>
+              <option value="ollama">Ollama（本地）</option>
+              <option value="custom">自定义</option>
+            </select>
+          </label>
+          <label class="field"><span>接口地址 baseURL</span><input id="cfgBaseURL" placeholder="https://api.deepseek.com" autocomplete="off" /></label>
+          <label class="field"><span>API Key</span><input id="cfgApiKey" type="password" placeholder="sk-…" autocomplete="off" /><button class="link-btn" id="btnToggleKey">显示</button></label>
+          <label class="field"><span>模型 model</span><input id="cfgModel" placeholder="deepseek-chat" autocomplete="off" /></label>
+          <div class="field-row">
+            <label class="field"><span>温度</span><input id="cfgTemp" type="number" step="0.1" min="0" max="2" /></label>
+            <label class="field"><span>最大输出</span><input id="cfgMaxTokens" type="number" step="256" min="256" /></label>
+          </div>
+          <div class="ai-actions">
+            <button class="btn ghost block" id="btnTestAI">✈ 测试连接</button>
+            <span class="mono small dim" id="testResult"></span>
+            <a class="link-btn center" href="https://platform.deepseek.com" target="_blank" rel="noopener">申请 DeepSeek API Key →</a>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn ghost" data-close="settingsModal">取消</button>
+        <button class="btn primary" id="btnSaveConfig">保存设置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 设备授权管理弹窗 -->
+  <div class="modal-backdrop hidden" id="deviceModal">
+    <div class="modal">
+      <div class="modal-head">
+        <span class="micro-label mono">DEVICES // 设备授权管理</span>
+        <button class="icon-btn" data-close="deviceModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="field-hint" style="padding-left:0">新设备接入需您批准；已批准设备长期有效，可随时移除。</p>
+        <div id="deviceList" class="device-list"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn ghost" data-close="deviceModal">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 图片库弹窗 -->
+  <div class="modal-backdrop hidden" id="imageModal">
+    <div class="modal">
+      <div class="modal-head">
+        <span class="micro-label mono">IMAGES // 图片库</span>
+        <button class="icon-btn" data-close="imageModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="upload-zone">
+          <input type="file" id="imageFileInput" accept="image/*" hidden />
+          <button class="btn primary block" id="btnPickImage">📤 上传图片 / 拍照</button>
+          <span class="mono small dim" id="uploadStatus"></span>
+        </div>
+        <div class="image-grid" id="imageGrid"></div>
+        <p class="field-hint" id="imageModalTip" style="padding-left:0">点击「插入」把图片放进正文（显示为占位标记），预览与 Word 导出时会自动显示图片。</p>
+      </div>
+      <div class="modal-foot">
+        <button class="btn ghost" data-close="imageModal">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 预览弹窗 -->
+  <div class="modal-backdrop hidden" id="previewModal">
+    <div class="modal wide">
+      <div class="modal-head">
+        <span class="micro-label mono">PREVIEW // 预览</span>
+        <button class="icon-btn" data-close="previewModal">✕</button>
+      </div>
+      <div class="modal-body preview-body" id="previewBody"></div>
+      <div class="modal-foot">
+        <button class="btn ghost" data-close="previewModal">关闭</button>
+        <button class="btn accent" id="btnPreviewExport">⬇ 导出 Word</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 手机连接弹窗 -->
+  <div class="modal-backdrop hidden" id="phoneModal">
+    <div class="modal">
+      <div class="modal-head">
+        <span class="micro-label mono">SYNC // 手机连接</span>
+        <button class="icon-btn" data-close="phoneModal">✕</button>
+      </div>
+      <div class="modal-body center">
+        <div class="qr-box"><img id="qrImg" class="qr-img hidden" alt="二维码" /><div id="qrFallback" class="mono qr-url hidden"></div></div>
+        <p class="qr-tip">① 手机和电脑连<strong>同一个 Wi-Fi</strong>　② 用手机相机 / 微信扫一扫</p>
+        <p class="qr-url mono" id="phoneUrl">—</p>
+        <p class="field-hint">手机打开后即可看到电脑端内容、随手记录，电脑端实时同步并可编辑。</p>
+        <div class="ai-actions">
+          <button class="btn ghost block" id="btnCopyUrl">⧉ 复制网址</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 数据空间登录 -->
+  <div class="gate hidden" id="gate">
+    <div class="gate-inner">
+      <div class="gate-mark">◈</div>
+      <div class="gate-title">进入我的数据空间</div>
+      <div class="gate-sub">每位使用者拥有独立空间、互不可见。输入空间名和密码进入；没有空间可创建一个。</div>
+      <div class="gate-device mono" id="gateDevice">—</div>
+      <div class="gate-form">
+        <input id="gateSpaceName" placeholder="空间名称（如：陈思源）" autocomplete="off" />
+        <input id="gatePin" type="password" placeholder="空间访问密码" autocomplete="off" />
+        <div class="gate-err" id="gateErr"></div>
+        <div class="ai-actions">
+          <button class="btn primary block" id="btnGateJoin">进入空间</button>
+          <button class="btn ghost block" id="btnGateCreate">＋ 创建新空间</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" aria-live="polite"></div>
+
+  <script defer src="app.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,18 @@
+{
+  "name": "weekly-summary-app",
+  "version": "1.0.0",
+  "description": "每周小结助手 - PC/手机实时协作 + AI 生成小结 + Word 导出",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "docx": "^9.0.0",
+    "express": "^4.21.2",
+    "qrcode": "^1.5.4",
+    "ws": "^8.18.0"
+  }
+}

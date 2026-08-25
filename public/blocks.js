@@ -564,32 +564,6 @@ function addBlock(type) {
   if (cards.length) cards[cards.length - 1].scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
-/* ---------- 把“添加板块”按钮换成块菜单 ---------- */
-function setupBlockMenu() {
-  const btn = $("btnAddSection");
-  if (!btn) return;
-  const wrap = document.createElement("div");
-  wrap.className = "block-add-menu";
-  const defs = [
-    { type: "text", label: "＋ 文本块" },
-    { type: "daily", label: "＋ 每日完成情况" },
-    { type: "checklist", label: "＋ 清单" },
-    { type: "template", label: "＋ 总结模板（可选）" }
-  ];
-  for (const d of defs) {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "btn ghost dashed block-add-btn";
-    b.textContent = d.label;
-    b.addEventListener("click", () => addBlock(d.type));
-    wrap.appendChild(b);
-  }
-  btn.replaceWith(wrap);
-}
-
-(function initBlocks() {
-  setupBlockMenu();
-})();
 /* ================= 自定义块：添加按钮（追加到末尾） ================= */
 (function () {
   var DEFS = {

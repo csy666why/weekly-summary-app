@@ -1323,7 +1323,8 @@ function bindEvents() {
     e.target.value = "";
   });
   $("btnPreviewExport").addEventListener("click", () => { closeModal("previewModal"); exportWord(); });
-  $("btnAddSection").addEventListener("click", () => {
+  const addSectionBtn = $("btnAddSection");
+  if (addSectionBtn) addSectionBtn.addEventListener("click", () => {
     if (!state.current) return;
     const n = state.current.sections.length + 1;
     const ns = { id: newId(), title: "（补充）记录" + n, content: "", updatedAt: new Date().toISOString() };

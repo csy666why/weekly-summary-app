@@ -97,7 +97,18 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: "/ws" });
 
 app.use(express.json({ limit: "25mb" }));
-app.use(express.static(PUBLIC_DIR, { index: "index.html", extensions: ["html"] }));
+app.use(express.static(PUBLIC_DIR, {
+  index: "index.html",
+  extensions: ["html"],
+  // 防缓存：HTML 每次强制重新获取；静态资源不缓存，配合 index.html 里的 ?v= 版本号使用
+  setHeaders(res, filePath) {
+    if (String(filePath).endsWith(".html")) {
+      res.setHeader("Cache-Control", "no-store");
+    } else {
+      res.setHeader("Cache-Control", "no-cache");
+    }
+  }
+}));
 
 const clients = new Map(); // ws -> { id, deviceId, device, browser, spaceId, ua }
 

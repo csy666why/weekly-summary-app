@@ -185,9 +185,11 @@ function buildTextCard(sec, index) {
 /* ---------- 每日完成情况块 ---------- */
 function dailyRowHtml(row) {
   return (
-    '<input class="day-date" placeholder="日期 如 8.17" value="' + escapeHtml((row && row.date) || "") + '" />' +
-    '<div class="day-content rich" contenteditable="true" data-placeholder="当天完成情况…"></div>' +
-    '<button class="day-del" title="删除这一天">✕</button>'
+    '<div class="day-row">' +
+      '<input class="day-date" placeholder="日期 如 8.17" value="' + escapeHtml((row && row.date) || "") + '" />' +
+      '<div class="day-content rich" contenteditable="true" data-placeholder="当天完成情况…"></div>' +
+      '<button class="day-del" title="删除这一天">✕</button>' +
+    "</div>"
   );
 }
 
@@ -222,10 +224,8 @@ function buildDailyCard(sec, index) {
   });
 
   card.querySelector(".day-add").addEventListener("click", () => {
-    const row = document.createElement("div");
-    row.className = "day-row";
-    row.innerHTML = dailyRowHtml({ date: "", content: "" });
-    rowsBox.appendChild(row);
+    rowsBox.insertAdjacentHTML("beforeend", dailyRowHtml({ date: "", content: "" }));
+    const row = rowsBox.lastElementChild;
     bindRich(row.querySelector(".day-content"), sec);
     row.querySelector(".day-date").addEventListener("input", () => { state.edited.sections[sec.id] = true; markDirty(); });
     row.querySelector(".day-date").focus();
@@ -238,9 +238,11 @@ function buildDailyCard(sec, index) {
 /* ---------- 清单块 ---------- */
 function checklistItemHtml(it) {
   return (
-    '<input type="checkbox" class="cli-check" ' + (it && it.done ? "checked" : "") + " />" +
-    '<input class="cli-text" placeholder="待办事项…" value="' + escapeHtml((it && it.text) || "") + '" />' +
-    '<button class="cli-del" title="删除">✕</button>'
+    '<div class="cli-item">' +
+      '<input type="checkbox" class="cli-check" ' + (it && it.done ? "checked" : "") + " />" +
+      '<input class="cli-text" placeholder="待办事项…" value="' + escapeHtml((it && it.text) || "") + '" />' +
+      '<button class="cli-del" title="删除">✕</button>' +
+    "</div>"
   );
 }
 
@@ -275,10 +277,8 @@ function buildChecklistCard(sec, index) {
   });
 
   card.querySelector(".cli-add").addEventListener("click", () => {
-    const item = document.createElement("div");
-    item.className = "cli-item";
-    item.innerHTML = checklistItemHtml({ done: false, text: "" });
-    itemsBox.appendChild(item);
+    itemsBox.insertAdjacentHTML("beforeend", checklistItemHtml({ done: false, text: "" }));
+    const item = itemsBox.lastElementChild;
     item.querySelector(".cli-text").focus();
     state.edited.sections[sec.id] = true;
     markDirty();

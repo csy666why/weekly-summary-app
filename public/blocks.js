@@ -12,7 +12,11 @@
     ".block-chip.daily{color:#fbbf24;border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.08)}",
     ".block-chip.checklist{color:#34d399;border-color:rgba(52,211,153,.4);background:rgba(52,211,153,.08)}",
     ".day-row{display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-bottom:1px dashed rgba(94,200,255,.12)}",
-    ".day-date{flex:none;width:96px;margin-top:2px;background:rgba(34,211,238,.06);border:1px solid rgba(94,200,255,.22);color:var(--cyan-bright);font-family:var(--mono);font-size:12px;border-radius:8px;padding:7px 8px;outline:none}",
+    ".day-date-wrap{display:flex;align-items:center;gap:6px;flex:none;width:150px;margin-top:2px}",
+    ".day-date-wrap .day-date{flex:1;width:auto;min-width:0;margin-top:0;background:rgba(34,211,238,.06);border:1px solid rgba(94,200,255,.22);color:var(--cyan-bright);font-family:var(--mono);font-size:12px;border-radius:8px;padding:7px 8px;outline:none}",
+    ".day-cal{flex:none;background:transparent;border:none;cursor:pointer;font-size:15px;line-height:1;padding:6px;border-radius:6px;color:var(--cyan-bright)}",
+    ".day-cal:hover{background:rgba(34,211,238,.12)}",
+    ".day-date-picker{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden;border:0;padding:0}",
     ".day-date:focus{border-color:var(--cyan)}",
     ".day-content{flex:1;min-width:0;min-height:44px;background:transparent;border:none;color:var(--text);font-size:14px;line-height:1.7;outline:none;padding:2px;border-radius:6px}",
     ".day-content:focus{background:rgba(34,211,238,.04)}",
@@ -32,7 +36,7 @@
     ".empty-canvas-title{font-family:var(--display);font-size:15px;letter-spacing:2px;color:var(--cyan-bright)}",
     ".empty-canvas-sub{margin-top:8px;color:var(--text-faint);font-size:13px;line-height:1.8}",
     ".pv-date{color:var(--cyan-bright);font-family:var(--mono);font-weight:600}",
-    "@media(max-width:720px){.day-row{flex-wrap:wrap}.day-date{width:100%}.day-content{flex-basis:100%}}"
+    "@media(max-width:720px){.day-row{flex-wrap:wrap}.day-date-wrap{width:100%}.day-date{width:100%}.day-content{flex-basis:100%}}"
   ].join("");
   const el = document.createElement("style");
   el.id = "blocks-css";
@@ -182,15 +186,63 @@ function buildTextCard(sec, index) {
   return card;
 }
 
+/* ---------- 日期工具（M.D 格式 + 日历） ---------- */
+function todayMd() {
+  const d = new Date();
+  return (d.getMonth() + 1) + "." + d.getDate();
+}
+function isoToMd(iso) {
+  const m = String(iso || "").match(/^\d{4}-(\d{2})-(\d{2})/);
+  return m ? parseInt(m[1], 10) + "." + parseInt(m[2], 10) : "";
+}
+function mdToIso(md) {
+  const m = String(md || "").match(/^(\d{1,2})\.(\d{1,2})/);
+  if (!m) return "";
+  const y = new Date().getFullYear();
+  return y + "-" + String(parseInt(m[1], 10)).padStart(2, "0") + "-" + String(parseInt(m[2], 10)).padStart(2, "0");
+}
+
 /* ---------- 每日完成情况块 ---------- */
 function dailyRowHtml(row) {
+  const md = (row && row.date) || "";
   return (
     '<div class="day-row">' +
-      '<input class="day-date" placeholder="日期 如 8.17" value="' + escapeHtml((row && row.date) || "") + '" />' +
+      '<span class="day-date-wrap">' +
+        '<input class="day-date" placeholder="日期 如 8.17" value="' + escapeHtml(md) + '" />' +
+        '<input type="date" class="day-date-picker" tabindex="-1" value="' + mdToIso(md) + '" aria-label="选择日期" />' +
+        '<button type="button" class="day-cal" title="选择日期">📅</button>' +
+      '</span>' +
       '<div class="day-content rich" contenteditable="true" data-placeholder="当天完成情况…"></div>' +
       '<button class="day-del" title="删除这一天">✕</button>' +
-    "</div>"
+    '</div>'
   );
+}
+
+/* 绑定一行：内容 + 日期文本 + 日历选择器 */
+function bindDayRow(row, sec, content) {
+  const cEl = row.querySelector(".day-content");
+  renderRichContent(cEl, content || "");
+  bindRich(cEl, sec);
+  const dEl = row.querySelector(".day-date");
+  const pEl = row.querySelector(".day-date-picker");
+  const cal = row.querySelector(".day-cal");
+  dEl.addEventListener("input", () => { state.edited.sections[sec.id] = true; markDirty(); });
+  if (cal) {
+    cal.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (pEl.showPicker) { try { pEl.showPicker(); } catch (_) { pEl.focus(); } }
+      else { pEl.focus(); pEl.click(); }
+    });
+  }
+  if (pEl) {
+    pEl.addEventListener("change", () => {
+      if (pEl.value) {
+        dEl.value = isoToMd(pEl.value);
+        state.edited.sections[sec.id] = true;
+        markDirty();
+      }
+    });
+  }
 }
 
 function buildDailyCard(sec, index) {
@@ -212,10 +264,7 @@ function buildDailyCard(sec, index) {
 
   const rowsBox = card.querySelector(".daily-rows");
   rowsBox.querySelectorAll(".day-row").forEach((row, i) => {
-    const cEl = row.querySelector(".day-content");
-    renderRichContent(cEl, (rows[i] && rows[i].content) || "");
-    bindRich(cEl, sec);
-    row.querySelector(".day-date").addEventListener("input", () => { state.edited.sections[sec.id] = true; markDirty(); });
+    bindDayRow(row, sec, (rows[i] && rows[i].content) || "");
   });
 
   rowsBox.addEventListener("click", (e) => {
@@ -224,11 +273,12 @@ function buildDailyCard(sec, index) {
   });
 
   card.querySelector(".day-add").addEventListener("click", () => {
-    rowsBox.insertAdjacentHTML("beforeend", dailyRowHtml({ date: "", content: "" }));
+    rowsBox.insertAdjacentHTML("beforeend", dailyRowHtml({ date: todayMd(), content: "" }));
     const row = rowsBox.lastElementChild;
-    bindRich(row.querySelector(".day-content"), sec);
-    row.querySelector(".day-date").addEventListener("input", () => { state.edited.sections[sec.id] = true; markDirty(); });
-    row.querySelector(".day-date").focus();
+    bindDayRow(row, sec, "");
+    const dEl = row.querySelector(".day-date");
+    dEl.focus();
+    dEl.select();
     state.edited.sections[sec.id] = true;
     markDirty();
   });
@@ -553,7 +603,7 @@ function addBlock(type) {
     toast("已插入总结模版（工作内容 / 收获体会 / 下周计划）", "ok");
   } else {
     const defaults = { text: "文本", daily: "每日完成情况", checklist: "清单" };
-    const ns = { id: newId(), title: defaults[type] || "文本", type: type || "text", content: "", updatedAt: now };
+    const ns = { id: newId(), title: defaults[type] || "文本", type: type || "text", content: type === "daily" ? JSON.stringify([{ date: todayMd(), content: "" }]) : "", updatedAt: now };
     state.current.sections.push(ns);
     state.edited.sections[ns.id] = true;
   }
@@ -579,7 +629,7 @@ function addBlock(type) {
     var sec = {
       id: newId(),
       title: (DEFS[type] ? DEFS[type].title : "文本") + " " + n,
-      content: "",
+      content: type === "daily" ? JSON.stringify([{ date: todayMd(), content: "" }]) : "",
       type: type,
       updatedAt: new Date().toISOString()
     };

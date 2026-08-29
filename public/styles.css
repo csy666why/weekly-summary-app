@@ -582,3 +582,12 @@ body {
 }
 .sec-content.rich img.rich-img.broken { opacity: 0.4; }
 .sec-content.rich img.rich-img.selected { outline: 2px solid var(--cyan); }
+
+/* ---------- 图片文字识别 OCR ---------- */
+.upload-btns{display:flex;gap:10px;margin-bottom:8px}
+.upload-btns .btn{flex:1;margin:0}
+.ocr-result{margin:10px 0;padding:12px;border:1px solid rgba(94,200,255,.22);border-radius:12px;background:rgba(34,211,238,.04)}
+.ocr-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px}
+#ocrTextArea{width:100%;min-height:96px;background:rgba(4,7,13,.7);border:1px solid rgba(94,200,255,.22);border-radius:8px;color:#e6edf3;font-size:13px;line-height:1.7;padding:8px;font-family:inherit;resize:vertical}
+#ocrTextArea:focus{border-color:#22d3ee;outline:none}
+.ocr-actions{display:flex;gap:8px;margin-top:8px}

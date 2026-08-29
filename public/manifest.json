@@ -1,0 +1,19 @@
+{
+  "name": "每周小结助手 WEEKLY·OS",
+  "short_name": "周小结",
+  "description": "每周小结助手：手机/电脑多端同步、AI 生成小结、Word 导出",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#04070d",
+  "theme_color": "#04070d",
+  "lang": "zh-CN",
+  "icons": [
+    { "src": "/icons/icon-128.png", "sizes": "128x128", "type": "image/png" },
+    { "src": "/icons/icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

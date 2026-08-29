@@ -103,8 +103,14 @@ function toast(msg, type) {
 }
 
 function autosize(el) {
-  el.style.height = "auto";
-  el.style.height = (el.scrollHeight + 2) + "px";
+  // 富文本（contenteditable）天然自适应高度，手动设高反而造成移动端每次按键跳动，直接跳过
+  if (!el || el.isContentEditable) return;
+  // 文本域：仅当高度真的变化时才调整，避免反复塌缩撑开
+  const target = (el.scrollHeight + 2) + "px";
+  if (el.style.height !== target) {
+    el.style.height = "auto";
+    el.style.height = target;
+  }
 }
 
 /* ---------- 授权 / 门禁 ---------- */
@@ -1148,6 +1154,66 @@ function insertImageToken(img) {
   toast("已插入图片", "ok");
 }
 
+/* ---------- 图片文字识别（OCR） ---------- */
+let ocrLoading = null;
+let lastOcrText = "";
+function loadTesseract() {
+  if (window.Tesseract) return Promise.resolve();
+  if (ocrLoading) return ocrLoading;
+  ocrLoading = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "/vendor/tesseract.min.js";
+    s.onload = () => resolve();
+    s.onerror = () => { ocrLoading = null; reject(new Error("识别引擎加载失败，请检查网络后重试")); };
+    document.head.appendChild(s);
+  });
+  return ocrLoading;
+}
+async function runOcr(file) {
+  const statusEl = $("ocrStatus");
+  const setStatus = (t) => { if (statusEl) statusEl.textContent = t; };
+  setStatus("正在加载识别引擎…");
+  await loadTesseract();
+  setStatus("正在识别…");
+  const result = await Tesseract.recognize(file, "chi_sim", {
+    workerPath: "/vendor/worker.min.js",
+    corePath: "/vendor/tesseract-core-simd.wasm.js",
+    langPath: "/tessdata",
+    logger: (m) => { if (m.status === "recognizing text") setStatus("识别中 " + Math.round((m.progress || 0) * 100) + "%"); }
+  });
+  return (result && result.data && result.data.text) || "";
+}
+/* 把识别文字插入正文：优先插到当前光标/最近编辑位置，否则追加到第一个板块 */
+function insertOcrText(text) {
+  const active = document.activeElement;
+  if (active && (active.isContentEditable || active.tagName === "TEXTAREA")) {
+    document.execCommand("insertText", false, text);
+    return true;
+  }
+  const rs = state.richSelection;
+  if (rs && rs.range && rs.sectionId) {
+    const card = $("sections").querySelector('.section-card[data-id="' + rs.sectionId + '"]');
+    const editor = card ? card.querySelector(".sec-content, .day-content") : null;
+    if (editor && editor.contains(rs.range.commonAncestorContainer)) {
+      editor.focus();
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(rs.range);
+      document.execCommand("insertText", false, text);
+      return true;
+    }
+  }
+  if (state.current && state.current.sections.length) {
+    const s0 = state.current.sections[0];
+    s0.content = s0.content + (s0.content ? "\n" : "") + text;
+    state.edited.sections[s0.id] = true;
+    renderSections();
+    markDirty();
+    return true;
+  }
+  return false;
+}
+
 /* 粘贴图片：自动上传并插入光标处 */
 async function handleRichPaste(e, sectionId) {
   const items = e.clipboardData && e.clipboardData.items;
@@ -1321,6 +1387,38 @@ function bindEvents() {
     const f = e.target.files && e.target.files[0];
     if (f) handleImageUpload(f);
     e.target.value = "";
+  });
+  $("btnOcr").addEventListener("click", () => $("ocrFileInput").click());
+  $("ocrFileInput").addEventListener("change", async (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    const box = $("ocrResult");
+    if (box) box.classList.remove("hidden");
+    $("ocrTextArea").value = "识别中…";
+    $("ocrStatus").textContent = "";
+    try {
+      const text = await runOcr(f);
+      lastOcrText = (text || "").trim();
+      $("ocrTextArea").value = lastOcrText || "（未识别到文字，请换一张更清晰的图片）";
+      $("ocrStatus").textContent = lastOcrText ? "识别完成" : "";
+    } catch (err) {
+      $("ocrTextArea").value = "";
+      $("ocrStatus").textContent = "识别失败：" + err.message;
+    }
+  });
+  $("btnOcrInsert").addEventListener("click", () => {
+    const text = (lastOcrText || ($("ocrTextArea").value || "")).trim();
+    if (!text) return toast("没有可插入的文字", "err");
+    const ok = insertOcrText(text);
+    if (ok) { closeModal("imageModal"); toast("已插入识别文字", "ok"); }
+    else toast("请先在正文中点击要插入的位置，再点插入", "err");
+  });
+  $("btnOcrCopy").addEventListener("click", async () => {
+    const text = (lastOcrText || ($("ocrTextArea").value || "")).trim();
+    if (!text) return toast("没有可复制的文字", "err");
+    try { await navigator.clipboard.writeText(text); toast("已复制", "ok"); }
+    catch (_) { toast("复制失败，请手动选择复制", "err"); }
   });
   $("btnPreviewExport").addEventListener("click", () => { closeModal("previewModal"); exportWord(); });
   const addSectionBtn = $("btnAddSection");

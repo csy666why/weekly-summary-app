@@ -25,6 +25,7 @@ const friends = require("./lib/friends");
 const messages = require("./lib/messages");
 const announcements = require("./lib/announcements");
 const backup = require("./lib/backup");
+const stickers = require("./lib/stickers");
 
 const PUBLIC_DIR = path.join(__dirname, "public");
 const VERSION = "2.0.0";
@@ -775,10 +776,11 @@ app.post("/api/messages", (req, res) => {
   const to = String(body.toSpaceId || "");
   if (!spaceId || !to) return res.status(400).json({ error: "参数错误" });
   if (!friends.areFriends(spaceId, to)) return res.status(403).json({ error: "不是好友" });
-  const type = body.type === "image" ? "image" : "text";
+  const type = body.type === "image" ? "image" : body.type === "emoji" ? "emoji" : "text";
   if (type === "text" && !String(body.content || "").trim()) return res.status(400).json({ error: "消息内容不能为空" });
   if (type === "image" && !String(body.imageId || "")) return res.status(400).json({ error: "缺少图片" });
-  const msg = messages.add({ from: spaceId, to, type, content: String(body.content || ""), imageId: String(body.imageId || "") });
+  if (type === "emoji" && !String(body.emoji || "")) return res.status(400).json({ error: "缺少表情" });
+  const msg = messages.add({ from: spaceId, to, type, content: String(body.content || ""), imageId: String(body.imageId || ""), emoji: String(body.emoji || "") });
   broadcast({ type: "message-new", message: msg }, null, to);
   broadcast({ type: "message-new", message: msg }, null, spaceId);
   res.json({ message: msg });
@@ -914,6 +916,53 @@ app.post("/api/backup/import", (req, res) => {
     store.reload(); spaces.reload(); devices.reload(); friends.reload(); messages.reload(); announcements.reload();
     res.json({ ok: true, restored: count, note: "已导入，请刷新页面查看" });
   } catch (e) { res.status(400).json({ error: "导入失败: " + e.message }); }
+});
+
+/* ---------- 表情包（用户收藏） ---------- */
+app.get("/api/stickers", (req, res) => {
+  const spaceId = spaceIdOf(req);
+  if (!spaceId) return res.status(403).json({ error: "请先加入一个数据空间" });
+  const list = stickers.list(spaceId).map((st) => ({ id: st.id, imageId: st.imageId, name: st.name, url: "/api/images/" + st.imageId }));
+  res.json({ stickers: list });
+});
+
+app.post("/api/stickers/upload", (req, res) => {
+  const spaceId = spaceIdOf(req);
+  if (!spaceId) return res.status(403).json({ error: "请先加入一个数据空间" });
+  const body = req.body || {};
+  const dataUrl = String(body.data || "");
+  const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!m) return res.status(400).json({ error: "图片数据格式错误" });
+  try {
+    const img = images.saveImage({ data: Buffer.from(m[2], "base64"), mime: m[1].toLowerCase(), width: body.width || 0, height: body.height || 0, name: body.name || "表情" });
+    const st = stickers.add(spaceId, img.id, body.name || "表情");
+    res.json({ sticker: { id: st.id, imageId: img.id, name: st.name, url: "/api/images/" + img.id } });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+app.post("/api/stickers/url", async (req, res) => {
+  const spaceId = spaceIdOf(req);
+  if (!spaceId) return res.status(403).json({ error: "请先加入一个数据空间" });
+  const body = req.body || {};
+  const url = String(body.url || "").trim();
+  if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: "请输入有效的图片网址（http/https）" });
+  try {
+    const r = await fetch(url, { signal: AbortSignal.timeout(20000) });
+    if (!r.ok) return res.status(400).json({ error: "下载图片失败（" + r.status + "）" });
+    const buf = Buffer.from(await r.arrayBuffer());
+    const ct = r.headers.get("content-type") || "image/png";
+    const img = images.saveImage({ data: buf, mime: ct, width: 0, height: 0, name: body.name || "外部表情" });
+    const st = stickers.add(spaceId, img.id, body.name || "外部表情");
+    res.json({ sticker: { id: st.id, imageId: img.id, name: st.name, url: "/api/images/" + img.id } });
+  } catch (e) { res.status(400).json({ error: "添加失败: " + e.message }); }
+});
+
+app.post("/api/stickers/remove", (req, res) => {
+  const spaceId = spaceIdOf(req);
+  const id = String((req.body || {}).id || "");
+  if (!spaceId || !id) return res.status(400).json({ error: "参数错误" });
+  stickers.remove(spaceId, id);
+  res.json({ ok: true });
 });
 
 /* ---------- 404 / 错误 ---------- */

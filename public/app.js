@@ -32,6 +32,11 @@ const state = {
   notice: { list: [], queue: [], current: null, bannerTimer: null, badge: 0 }
 };
 
+/* 内置经典表情（微信风格） */
+const CLASSIC_EMOJIS = ["smile","smile2","laugh","cry","sad","angry","surprise","love","wink","cool","shy","sweat","tongue","speechless","smirk","cold"];
+/* 常用 Unicode emoji */
+const UNICODE_EMOJIS = ["😀","😁","😂","🤣","😊","😍","😘","😜","🤔","😴","🥰","😎","😭","😅","😡","🥳","🤗","🤩","👍","👎","👏","🙏","❤️","🔥","✨","🎉","😂","😢","😳","🥺"];
+
 const PROVIDERS = {
   deepseek:   { baseURL: "https://api.deepseek.com", model: "deepseek-chat" },
   openai:     { baseURL: "https://api.openai.com/v1", model: "gpt-4o-mini" },
@@ -1220,6 +1225,113 @@ function showChatWindow(f) {
 function closeChatWindow() {
   $("chatWindow").classList.add("hidden");
   state.chat.activeFriend = null;
+  const ep = $("chatEmojiPanel");
+  if (ep) ep.classList.add("hidden");
+}
+/* ---------- 表情包 ---------- */
+let emojiTab = "classic";
+function toggleEmojiPanel() {
+  const ep = $("chatEmojiPanel");
+  ep.classList.toggle("hidden");
+  if (!ep.classList.contains("hidden")) renderEmojiPanel(emojiTab);
+}
+function renderEmojiPanel(tab) {
+  emojiTab = tab;
+  const body = $("emojiBody");
+  body.innerHTML = "";
+  document.querySelectorAll(".emoji-tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
+  if (tab === "classic") {
+    const grid = document.createElement("div");
+    grid.className = "emoji-grid";
+    for (const name of CLASSIC_EMOJIS) {
+      const el = document.createElement("img");
+      el.className = "emoji-cell";
+      el.src = "/emoji/" + name + ".png";
+      el.title = name;
+      el.addEventListener("click", () => sendEmoji(name));
+      grid.appendChild(el);
+    }
+    body.appendChild(grid);
+  } else if (tab === "unicode") {
+    const grid = document.createElement("div");
+    grid.className = "emoji-grid text";
+    for (const ch of UNICODE_EMOJIS) {
+      const el = document.createElement("span");
+      el.className = "emoji-char";
+      el.textContent = ch;
+      el.addEventListener("click", () => { $("chatTextInput").value += ch; $("chatTextInput").focus(); });
+      grid.appendChild(el);
+    }
+    body.appendChild(grid);
+  } else {
+    loadStickersInto(body);
+  }
+}
+async function sendEmoji(name) {
+  const fid = state.chat.activeFriend;
+  if (!fid) { toast("请先选择好友", "err"); return; }
+  try {
+    await fetchJSON("/api/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ toSpaceId: fid, type: "emoji", emoji: name }) });
+  } catch (e) { toast("发送失败: " + e.message, "err"); }
+}
+async function sendSticker(imageId) {
+  const fid = state.chat.activeFriend;
+  if (!fid) { toast("请先选择好友", "err"); return; }
+  try {
+    await fetchJSON("/api/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ toSpaceId: fid, type: "image", imageId }) });
+  } catch (e) { toast("发送失败: " + e.message, "err"); }
+}
+async function loadStickersInto(box) {
+  box.innerHTML = '<div class="emoji-empty">加载中…</div>';
+  try {
+    const data = await fetchJSON("/api/stickers");
+    const list = data.stickers || [];
+    if (!list.length) { box.innerHTML = '<div class="emoji-empty">还没有收藏表情，用上方「上传/添加网址」添加</div>'; return; }
+    const grid = document.createElement("div");
+    grid.className = "emoji-grid";
+    for (const st of list) {
+      const wrap = document.createElement("div");
+      wrap.className = "emoji-cell-wrap";
+      const img = document.createElement("img");
+      img.className = "emoji-cell";
+      img.src = st.url;
+      img.title = st.name;
+      img.addEventListener("click", () => sendSticker(st.imageId));
+      const del = document.createElement("button");
+      del.className = "emoji-del";
+      del.textContent = "✕";
+      del.addEventListener("click", (e) => { e.stopPropagation(); removeSticker(st.id); });
+      wrap.appendChild(img);
+      wrap.appendChild(del);
+      grid.appendChild(wrap);
+    }
+    box.appendChild(grid);
+  } catch (_) { box.innerHTML = '<div class="emoji-empty">加载失败</div>'; }
+}
+async function addStickerByUpload(file) {
+  if (!file) return;
+  const dataUrl = await readAsDataURL(file);
+  try {
+    await fetchJSON("/api/stickers/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: dataUrl, name: file.name || "表情" }) });
+    toast("表情已添加", "ok");
+    if (emojiTab === "mine") renderEmojiPanel("mine");
+  } catch (e) { toast("添加失败: " + e.message, "err"); }
+}
+async function addStickerByUrl() {
+  const url = $("stickerUrlInput").value.trim();
+  if (!url) { toast("请输入图片网址", "err"); return; }
+  $("stickerUrlInput").value = "";
+  try {
+    await fetchJSON("/api/stickers/url", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
+    toast("表情已添加", "ok");
+    if (emojiTab === "mine") renderEmojiPanel("mine");
+  } catch (e) { toast("添加失败: " + e.message, "err"); }
+}
+async function removeSticker(id) {
+  try {
+    await fetchJSON("/api/stickers/remove", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+    if (emojiTab === "mine") renderEmojiPanel("mine");
+  } catch (e) { toast("删除失败: " + e.message, "err"); }
 }
 function bindChatActions() {
   const conv = $("chatConv");
@@ -1265,6 +1377,8 @@ function appendChatMessage(m, scroll) {
   } else if (m.type === "image") {
     const url = "/api/images/" + encodeURIComponent(m.imageId);
     body = '<a class="chat-img" href="' + url + '" target="_blank" rel="noopener"><img src="' + url + '" loading="lazy" alt="图片" /></a>';
+  } else if (m.type === "emoji" && m.emoji) {
+    body = '<img class="chat-emoji-img" src="/emoji/' + encodeURIComponent(m.emoji) + '.png" alt="表情" />';
   } else {
     body = '<div class="chat-text">' + escapeHtml(m.content).replace(/\n/g, "<br>") + "</div>";
   }
@@ -2266,6 +2380,12 @@ function bindEvents() {
   $("btnNoticeClose").addEventListener("click", hideBanner);
   $("btnChat").addEventListener("click", openChat);
   $("btnChatWinClose").addEventListener("click", closeChatWindow);
+  $("btnChatEmoji").addEventListener("click", toggleEmojiPanel);
+  document.querySelectorAll(".emoji-tab").forEach((b) => b.addEventListener("click", () => renderEmojiPanel(b.dataset.tab)));
+  $("btnStickerUpload").addEventListener("click", () => $("stickerFileInput").click());
+  $("stickerFileInput").addEventListener("change", (e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) addStickerByUpload(f); });
+  $("btnStickerUrl").addEventListener("click", addStickerByUrl);
+  $("stickerUrlInput").addEventListener("keydown", (e) => { if (e.key === "Enter") addStickerByUrl(); });
   $("imgLightbox").addEventListener("click", () => $("imgLightbox").classList.add("hidden"));
   $("chatModal").querySelector('[data-close="chatModal"]').addEventListener("click", closeChat);
   $("btnAddFriend").addEventListener("click", () => { $("friendErr").textContent = ""; $("friendModal").classList.remove("hidden"); });

@@ -726,3 +726,22 @@ body.notice-open{--notice-h:34px}
 .modal-backdrop.lightbox{display:flex;align-items:center;justify-content:center;cursor:zoom-out;z-index:300}
 .modal-backdrop.lightbox.hidden{display:none}
 .modal-backdrop.lightbox img{max-width:92vw;max-height:90vh;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.6)}
+/* ---------- 表情包 ---------- */
+.chat-emoji-panel{border-top:1px solid rgba(94,200,255,.14);padding:8px;max-height:240px;overflow-y:auto}
+.emoji-tabs{display:flex;gap:6px;margin-bottom:8px}
+.emoji-tab{background:transparent;border:1px solid rgba(94,200,255,.2);color:#94a3b8;font-size:12px;padding:4px 10px;border-radius:14px;cursor:pointer}
+.emoji-tab.active{color:#22d3ee;border-color:#22d3ee;background:rgba(34,211,238,.1)}
+.emoji-body{max-height:150px;overflow-y:auto}
+.emoji-grid{display:flex;flex-wrap:wrap;gap:6px}
+.emoji-cell{width:40px;height:40px;object-fit:contain;border-radius:8px;cursor:pointer;border:1px solid transparent}
+.emoji-cell:hover{border-color:#22d3ee;background:rgba(34,211,238,.08)}
+.emoji-grid.text .emoji-char{font-size:24px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:8px}
+.emoji-grid.text .emoji-char:hover{background:rgba(34,211,238,.1)}
+.emoji-cell-wrap{position:relative}
+.emoji-del{position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:rgba(251,113,133,.9);border:none;color:#fff;font-size:10px;line-height:1;cursor:pointer;display:none}
+.emoji-cell-wrap:hover .emoji-del{display:block}
+.emoji-add{display:flex;gap:6px;margin-top:8px;align-items:center}
+.emoji-add input{flex:1;min-width:0;background:rgba(4,7,13,.7);border:1px solid rgba(94,200,255,.22);border-radius:8px;color:#e6edf3;font-size:12px;padding:6px;outline:none}
+.emoji-add input:focus{border-color:#22d3ee}
+.emoji-empty{color:#64748b;font-size:12px;text-align:center;padding:16px}
+.chat-emoji-img{width:48px;height:48px;object-fit:contain;vertical-align:middle}

@@ -624,3 +624,10 @@ body {
 .chat-input-row input[type="text"],#chatTextInput{flex:1;min-width:0;background:rgba(4,7,13,.7);border:1px solid rgba(94,200,255,.22);border-radius:8px;color:#e6edf3;font-size:14px;padding:9px 12px;outline:none}
 #chatTextInput:focus{border-color:#22d3ee}
 @media(max-width:720px){.chat-side{width:92px}.chat-friend-name{display:none}.chat-del{display:none}.chat-side-foot{display:none}.chat-msg{max-width:88%}}
+
+.chat-info{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid rgba(94,200,255,.14);flex-wrap:wrap}
+.chat-me{font-size:13px;color:#94a3b8}
+.chat-me b{color:#22d3ee;font-family:var(--mono);letter-spacing:1px;margin:0 2px}
+.chat-stats{font-size:11px;color:#64748b}
+.chat-friend{flex-wrap:wrap}
+.chat-friend-code{flex-basis:100%;padding-left:17px;font-size:10px;color:#64748b;letter-spacing:.5px}

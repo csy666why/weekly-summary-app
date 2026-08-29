@@ -869,6 +869,16 @@ async function openChat() {
     renderChatFriends();
     if (!state.chat.activeFriend && state.chat.friends.length) openConversation(state.chat.friends[0].spaceId);
   } catch (e) { toast("加载好友失败: " + e.message, "err"); }
+  loadSpaceInfo();
+}
+async function loadSpaceInfo() {
+  try {
+    const data = await fetchJSON("/api/space");
+    const codeEl = $("chatMyCode");
+    if (codeEl) codeEl.textContent = (data.space && data.space.code) || "—";
+    const statsEl = $("chatStats");
+    if (statsEl && data.stats) statsEl.textContent = "全站 " + data.stats.totalSpaces + " 个空间 · " + data.stats.onlineSpaces + " 个在线";
+  } catch (_) {}
 }
 function closeChat() {
   $("chatModal").classList.add("hidden");
@@ -888,6 +898,7 @@ function renderChatFriends() {
     el.innerHTML =
       '<span class="chat-dot ' + (f.online ? "on" : "off") + '"></span>' +
       '<span class="chat-friend-name">' + escapeHtml(f.name) + "</span>" +
+      (f.code ? '<span class="chat-friend-code mono">ID ' + escapeHtml(f.code) + "</span>" : "") +
       (un ? '<span class="badge chat-unread">' + un + "</span>" : "") +
       '<button class="chat-del" title="删除好友">✕</button>';
     el.addEventListener("click", (e) => {
@@ -1004,21 +1015,20 @@ async function loadChatFriendsSilent() {
   } catch (_) {}
 }
 async function addFriendSubmit() {
-  const name = $("friendSpaceName").value.trim();
-  const pin = $("friendPin").value;
+  const query = $("friendQuery").value.trim();
   const errEl = $("friendErr");
   errEl.textContent = "";
-  if (!name) { errEl.textContent = "请输入对方的空间名称"; return; }
+  if (!query) { errEl.textContent = "请输入对方的空间ID或空间名称"; return; }
   try {
-    const r = await fetchJSON("/api/friends", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ spaceName: name, pin }) });
+    const r = await fetchJSON("/api/friends", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query }) });
     $("friendModal").classList.add("hidden");
-    $("friendSpaceName").value = ""; $("friendPin").value = "";
+    $("friendQuery").value = "";
     toast("已添加好友「" + r.friend.name + "」", "ok");
     state.chat.friends.push(r.friend);
     renderChatFriends();
     openConversation(r.friend.spaceId);
   } catch (e) {
-    errEl.textContent = (e.data && e.data.pinWrong) ? "空间密码错误" : e.message;
+    errEl.textContent = e.message;
   }
 }
 
@@ -1663,7 +1673,18 @@ function bindEvents() {
   $("chatModal").querySelector('[data-close="chatModal"]').addEventListener("click", closeChat);
   $("btnAddFriend").addEventListener("click", () => { $("friendErr").textContent = ""; $("friendModal").classList.remove("hidden"); });
   $("btnFriendSubmit").addEventListener("click", addFriendSubmit);
-  $("friendPin").addEventListener("keydown", (e) => { if (e.key === "Enter") addFriendSubmit(); });
+  $("friendQuery").addEventListener("keydown", (e) => { if (e.key === "Enter") addFriendSubmit(); });
+  $("btnCopyMyCode").addEventListener("click", () => {
+    const code = $("chatMyCode").textContent;
+    if (!code || code === "—") return toast("没有可复制的空间ID", "err");
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(code).then(() => toast("空间ID已复制", "ok")).catch(() => toast("复制失败", "err"));
+    } else {
+      const ta = document.createElement("textarea");
+      ta.value = code; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove();
+      toast("空间ID已复制", "ok");
+    }
+  });
   $("btnChatSend").addEventListener("click", sendChatMessage);
   $("chatTextInput").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); sendChatMessage(); } });
   $("btnChatImage").addEventListener("click", () => $("chatFileInput").click());

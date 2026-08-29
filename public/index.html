@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="周小结" />
-  <link rel="manifest" href="manifest.json?v=20260830c" />
+  <link rel="manifest" href="manifest.json?v=20260830d" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <meta name="theme-color" content="#04070d" />
@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="styles.css?v=20260830c" />
+<link rel="stylesheet" href="styles.css?v=20260830d" />
 </head>
 <body>
   <div class="bg-grid" aria-hidden="true"></div>
@@ -276,6 +276,10 @@
         <span class="micro-label mono">CHAT // 空间消息</span>
         <button class="icon-btn" data-close="chatModal">✕</button>
       </div>
+      <div class="chat-info">
+        <span class="chat-me">我的空间ID：<b id="chatMyCode">—</b> <button class="btn ghost sm" id="btnCopyMyCode" title="复制我的空间ID">⧉ 复制</button></span>
+        <span class="chat-stats mono small dim" id="chatStats">—</span>
+      </div>
       <div class="chat-body">
         <div class="chat-side">
           <div class="chat-side-head">
@@ -309,13 +313,12 @@
         <button class="icon-btn" data-close="friendModal">✕</button>
       </div>
       <div class="modal-body">
-        <input id="friendSpaceName" placeholder="对方的空间名称（如：张三）" autocomplete="off" />
-        <input id="friendPin" type="password" placeholder="对方空间的访问密码" autocomplete="off" />
+        <input id="friendQuery" placeholder="对方的空间ID 或 空间名称" autocomplete="off" />
         <div class="gate-err" id="friendErr"></div>
         <div class="ai-actions">
           <button class="btn primary block" id="btnFriendSubmit">添加</button>
         </div>
-        <p class="field-hint">成为好友后，双方都能看到彼此在线状态并互发消息/图片。</p>
+        <p class="field-hint">输入对方的空间ID或名称即可添加为好友（无需密码）。添加后互相可见在线状态、互发消息/图片；对方的小结内容对你完全保密。</p>
       </div>
     </div>
   </div>
@@ -375,16 +378,16 @@
 
   <div id="toast" aria-live="polite"></div>
 
-  <script defer src="app.js?v=20260830c"></script>
-  <script defer src="mobile-save.js?v=20260830c"></script>
+  <script defer src="app.js?v=20260830d"></script>
+  <script defer src="mobile-save.js?v=20260830d"></script>
     <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
-        navigator.serviceWorker.register("sw.js?v=20260830c").catch(function () {});
+        navigator.serviceWorker.register("sw.js?v=20260830d").catch(function () {});
       });
     }
   </script>
-  <script defer src="blocks.js?v=20260830c"></script>
+  <script defer src="blocks.js?v=20260830d"></script>
 </body>
 </html>
 

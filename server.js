@@ -304,6 +304,7 @@ app.get("/api/auth/status", (req, res) => {
     joined: !!(d && d.spaceId),
     spaceId: (d && d.spaceId) || "",
     spaceName: space ? space.name : "",
+    spaceCode: space ? (space.code || "") : "",
     owner: !!(d && d.owner),
     serverAdmin: isServerAdmin(deviceId)
   });
@@ -617,7 +618,7 @@ app.get("/api/friends", (req, res) => {
   const list = friends.friendsOf(spaceId)
     .map((fid) => {
       const sp = spaces.findById(fid);
-      return { spaceId: fid, name: sp ? sp.name : "已删除的空间", online: spaceOnline(fid) };
+      return { spaceId: fid, name: sp ? sp.name : "已删除的空间", code: sp ? (sp.code || "") : "", online: spaceOnline(fid) };
     })
     .sort((a, b) => (a.online === b.online ? 0 : a.online ? -1 : 1));
   res.json({ friends: list, unread: messages.unreadCount(spaceId) });
@@ -627,17 +628,28 @@ app.post("/api/friends", (req, res) => {
   const spaceId = spaceIdOf(req);
   if (!spaceId) return res.status(403).json({ error: "请先加入一个数据空间" });
   const body = req.body || {};
-  const name = String(body.spaceName || "").trim();
-  const pin = String(body.pin || "");
-  if (!name) return res.status(400).json({ error: "请输入对方的空间名称" });
-  const sp = spaces.findByName(name);
-  if (!sp) return res.status(404).json({ error: "找不到该空间，请确认空间名称" });
+  const query = String(body.query || body.spaceName || "").trim();
+  if (!query) return res.status(400).json({ error: "请输入对方的空间ID或空间名称" });
+  // 支持：空间ID（6位码） / 内部ID / 空间名称
+  let sp = spaces.findByCode(query) || spaces.findById(query) || spaces.findByName(query);
+  if (!sp) return res.status(404).json({ error: "找不到该空间，请确认空间ID或名称" });
   if (sp.id === spaceId) return res.status(400).json({ error: "不能添加自己为好友" });
-  if (!spaces.verifyPin(sp, pin)) return res.status(403).json({ error: "空间密码错误", pinWrong: true });
   friends.addFriend(spaceId, sp.id);
   broadcastFriendStatus(sp.id);
   broadcastFriendStatus(spaceId);
-  res.json({ ok: true, friend: { spaceId: sp.id, name: sp.name, online: spaceOnline(sp.id) } });
+  res.json({ ok: true, friend: { spaceId: sp.id, name: sp.name, code: sp.code || "", online: spaceOnline(sp.id) } });
+});
+
+app.get("/api/space", (req, res) => {
+  const spaceId = spaceIdOf(req);
+  if (!spaceId) return res.status(403).json({ error: "请先加入一个数据空间" });
+  const sp = spaces.findById(spaceId);
+  if (!sp) return res.status(404).json({ error: "空间不存在" });
+  const totalSpaces = spaces.list().length;
+  res.json({
+    space: { id: sp.id, code: sp.code || "", name: sp.name, online: spaceOnline(spaceId) },
+    stats: { totalSpaces, onlineSpaces: onlineSpaces().size, onlineDevices: [...clients.values()].filter(isWsJoined).length }
+  });
 });
 
 app.delete("/api/friends/:spaceId", (req, res) => {

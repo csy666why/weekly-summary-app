@@ -27,7 +27,8 @@ const state = {
   deletedSections: [],
   devices: [],
   imageInsertTarget: null,
-  richSelection: null
+  richSelection: null,
+  chat: { friends: [], activeFriend: null, unread: {} }
 };
 
 const PROVIDERS = {
@@ -241,6 +242,7 @@ function handleMessage(msg) {
       state.clients = msg.clients || [];
       if (msg.summaries) { state.summaries = msg.summaries; renderList(); }
       renderDevices();
+      loadChatFriendsSilent();
       if (state.current) refreshCurrent();
       break;
     case "clients":
@@ -267,6 +269,12 @@ function handleMessage(msg) {
       break;
     case "devices-changed":
       loadDevices(true);
+      break;
+    case "message-new":
+      onChatMessage(msg);
+      break;
+    case "friend-status":
+      updateFriendOnline(msg.spaceId, !!msg.online);
       break;
   }
 }
@@ -844,6 +852,174 @@ async function exportWord() {
   a.remove();
   setSave("ok", "已导出 " + fmtTime());
   toast("Word 文档已生成并开始下载", "ok");
+}
+
+/* ---------- 空间聊天（好友 / 消息） ---------- */
+function updateChatBadge() {
+  const total = Object.values(state.chat.unread || {}).reduce((a2, b2) => a2 + b2, 0);
+  const badge = $("chatBadge");
+  if (badge) { badge.textContent = total; badge.classList.toggle("hidden", total === 0); }
+}
+async function openChat() {
+  const box = $("chatModal");
+  box.classList.remove("hidden");
+  try {
+    const data = await fetchJSON("/api/friends");
+    state.chat.friends = data.friends || [];
+    renderChatFriends();
+    if (!state.chat.activeFriend && state.chat.friends.length) openConversation(state.chat.friends[0].spaceId);
+  } catch (e) { toast("加载好友失败: " + e.message, "err"); }
+}
+function closeChat() {
+  $("chatModal").classList.add("hidden");
+}
+function renderChatFriends() {
+  const box = $("chatFriends");
+  box.innerHTML = "";
+  if (!state.chat.friends.length) {
+    box.innerHTML = '<div class="chat-friend-empty">还没有好友<br/>点上方「添加好友」</div>';
+    return;
+  }
+  for (const f of state.chat.friends) {
+    const el = document.createElement("div");
+    el.className = "chat-friend" + (state.chat.activeFriend === f.spaceId ? " active" : "");
+    el.dataset.spaceId = f.spaceId;
+    const un = state.chat.unread[f.spaceId] || 0;
+    el.innerHTML =
+      '<span class="chat-dot ' + (f.online ? "on" : "off") + '"></span>' +
+      '<span class="chat-friend-name">' + escapeHtml(f.name) + "</span>" +
+      (un ? '<span class="badge chat-unread">' + un + "</span>" : "") +
+      '<button class="chat-del" title="删除好友">✕</button>';
+    el.addEventListener("click", (e) => {
+      if (e.target.closest(".chat-del")) { removeChatFriend(f.spaceId); return; }
+      openConversation(f.spaceId);
+    });
+    box.appendChild(el);
+  }
+}
+function updateFriendOnline(spaceId, online) {
+  const f = state.chat.friends.find((x) => x.spaceId === spaceId);
+  if (f) { f.online = online; renderChatFriends(); }
+}
+async function openConversation(spaceId) {
+  const f = state.chat.friends.find((x) => x.spaceId === spaceId);
+  if (!f) return;
+  state.chat.activeFriend = spaceId;
+  state.chat.unread[spaceId] = 0;
+  renderChatFriends();
+  updateChatBadge();
+  $("chatInputArea").classList.remove("hidden");
+  $("chatEmpty").classList.add("hidden");
+  $("chatTextInput").placeholder = "发给 " + f.name + "…";
+  try {
+    const data = await fetchJSON("/api/messages?friend=" + encodeURIComponent(spaceId));
+    renderChatMessages(data.messages || []);
+  } catch (e) { toast("加载消息失败: " + e.message, "err"); }
+}
+function renderChatMessages(list) {
+  const conv = $("chatConv");
+  conv.innerHTML = "";
+  if (!list.length) {
+    conv.innerHTML = '<div class="chat-empty" style="display:block">还没有消息，发一句打个招呼吧</div>';
+    return;
+  }
+  for (const m of list) appendChatMessage(m, false);
+  conv.scrollTop = conv.scrollHeight;
+}
+function appendChatMessage(m, scroll) {
+  const conv = $("chatConv");
+  const mine = m.from === state.auth.spaceId;
+  const el = document.createElement("div");
+  el.className = "chat-msg " + (mine ? "mine" : "theirs");
+  el.dataset.id = m.id;
+  const time = m.createdAt ? fmtShort(m.createdAt) + " " + String(m.createdAt).slice(11, 16) : "";
+  let body = "";
+  if (m.type === "image") {
+    const url = "/api/images/" + encodeURIComponent(m.imageId);
+    body = '<a class="chat-img" href="' + url + '" target="_blank" rel="noopener"><img src="' + url + '" loading="lazy" alt="图片" /></a>';
+  } else {
+    body = '<div class="chat-text">' + escapeHtml(m.content).replace(/\n/g, "<br>") + "</div>";
+  }
+  el.innerHTML = body + '<div class="chat-time">' + time + "</div>";
+  conv.appendChild(el);
+  if (scroll !== false) conv.scrollTop = conv.scrollHeight;
+}
+async function sendChatMessage() {
+  const fid = state.chat.activeFriend;
+  if (!fid) { toast("请先选择好友", "err"); return; }
+  const input = $("chatTextInput");
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+  try {
+    await fetchJSON("/api/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ toSpaceId: fid, type: "text", content: text }) });
+  } catch (e) { toast("发送失败: " + e.message, "err"); input.value = text; }
+}
+async function uploadChatImage(file) {
+  const fid = state.chat.activeFriend;
+  if (!fid) { toast("请先选择好友", "err"); return; }
+  const dataUrl = await readAsDataURL(file);
+  try {
+    const r = await fetchJSON("/api/chat/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: dataUrl, name: file.name || "图片" }) });
+    await fetchJSON("/api/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ toSpaceId: fid, type: "image", imageId: r.image.id }) });
+    toast("图片已发送", "ok");
+  } catch (e) { toast("图片发送失败: " + e.message, "err"); }
+}
+function removeChatFriend(spaceId) {
+  const f = state.chat.friends.find((x) => x.spaceId === spaceId);
+  if (!f) return;
+  if (!confirm("确定删除好友「" + f.name + "」？")) return;
+  fetchJSON("/api/friends/" + encodeURIComponent(spaceId), { method: "DELETE" })
+    .then(() => {
+      state.chat.friends = state.chat.friends.filter((x) => x.spaceId !== spaceId);
+      if (state.chat.activeFriend === spaceId) { state.chat.activeFriend = null; $("chatInputArea").classList.add("hidden"); $("chatEmpty").classList.remove("hidden"); }
+      renderChatFriends();
+    })
+    .catch((e) => toast("删除失败: " + e.message, "err"));
+}
+function onChatMessage(msg) {
+  const m = msg.message;
+  if (!m) return;
+  const isMine = m.from === state.auth.spaceId;
+  const chatVisible = !$("chatModal").classList.contains("hidden");
+  if (!isMine) {
+    if (!chatVisible || state.chat.activeFriend !== m.from) {
+      state.chat.unread[m.from] = (state.chat.unread[m.from] || 0) + 1;
+      if (!state.chat.friends.some((f) => f.spaceId === m.from)) loadChatFriendsSilent();
+      else renderChatFriends();
+      updateChatBadge();
+      return;
+    }
+    fetchJSON("/api/messages/read", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ friendSpaceId: m.from }) }).catch(() => {});
+  }
+  if (chatVisible && state.chat.activeFriend === (isMine ? m.to : m.from)) {
+    appendChatMessage(m, true);
+  }
+}
+async function loadChatFriendsSilent() {
+  try {
+    const data = await fetchJSON("/api/friends");
+    state.chat.friends = data.friends || [];
+    renderChatFriends();
+  } catch (_) {}
+}
+async function addFriendSubmit() {
+  const name = $("friendSpaceName").value.trim();
+  const pin = $("friendPin").value;
+  const errEl = $("friendErr");
+  errEl.textContent = "";
+  if (!name) { errEl.textContent = "请输入对方的空间名称"; return; }
+  try {
+    const r = await fetchJSON("/api/friends", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ spaceName: name, pin }) });
+    $("friendModal").classList.add("hidden");
+    $("friendSpaceName").value = ""; $("friendPin").value = "";
+    toast("已添加好友「" + r.friend.name + "」", "ok");
+    state.chat.friends.push(r.friend);
+    renderChatFriends();
+    openConversation(r.friend.spaceId);
+  } catch (e) {
+    errEl.textContent = (e.data && e.data.pinWrong) ? "空间密码错误" : e.message;
+  }
 }
 
 /* ---------- 设置 ---------- */
@@ -1483,6 +1659,19 @@ function bindEvents() {
   $("btnDevices").addEventListener("click", openDeviceModal);
 
   $("btnPhone").addEventListener("click", openPhone);
+  $("btnChat").addEventListener("click", openChat);
+  $("chatModal").querySelector('[data-close="chatModal"]').addEventListener("click", closeChat);
+  $("btnAddFriend").addEventListener("click", () => { $("friendErr").textContent = ""; $("friendModal").classList.remove("hidden"); });
+  $("btnFriendSubmit").addEventListener("click", addFriendSubmit);
+  $("friendPin").addEventListener("keydown", (e) => { if (e.key === "Enter") addFriendSubmit(); });
+  $("btnChatSend").addEventListener("click", sendChatMessage);
+  $("chatTextInput").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); sendChatMessage(); } });
+  $("btnChatImage").addEventListener("click", () => $("chatFileInput").click());
+  $("chatFileInput").addEventListener("change", (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (f) uploadChatImage(f);
+  });
   $("btnCopyUrl").addEventListener("click", copyUrl);
 
   $("btnAiToggle").addEventListener("click", () => document.body.classList.toggle("ai-collapsed"));

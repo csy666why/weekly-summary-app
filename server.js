@@ -21,6 +21,8 @@ const images = require("./lib/images");
 const ai = require("./lib/ai");
 const { exportDocx } = require("./lib/docx-exporter");
 const QRCode = require("qrcode");
+const friends = require("./lib/friends");
+const messages = require("./lib/messages");
 
 const PUBLIC_DIR = path.join(__dirname, "public");
 const VERSION = "2.0.0";
@@ -138,6 +140,27 @@ function broadcastDevices(spaceId) {
   broadcast({ type: "devices-changed" }, null, spaceId);
 }
 
+/* ---------- 空间好友 / 消息辅助 ---------- */
+function onlineSpaces() {
+  const set = new Set();
+  for (const [, info] of clients) {
+    if (isWsJoined(info)) set.add(devices.spaceOf(info.deviceId));
+  }
+  return set;
+}
+function spaceOnline(spaceId) { return onlineSpaces().has(spaceId); }
+function broadcastFriendStatus(spaceId) {
+  const online = onlineSpaces();
+  for (const fid of friends.friendsOf(spaceId)) {
+    broadcast({ type: "friend-status", spaceId, online: online.has(spaceId) }, null, fid);
+  }
+}
+/* 图片跨空间访问：本空间的小结图片，或聊天消息里共享的图片 */
+function imageAccessible(spaceId, imageId) {
+  if (store.imageInSpace(imageId, spaceId)) return true;
+  return messages.listAll().some((m) => m.imageId === imageId && (m.from === spaceId || m.to === spaceId));
+}
+
 function fullSummaryPayload(s) {
   return { type: "summary-updated", summary: s };
 }
@@ -165,6 +188,7 @@ wss.on("connection", (ws, req) => {
         summaries: store.list(spaceId)
       }));
       broadcastClients(spaceId);
+      broadcastFriendStatus(spaceId);
     }
 
     ws.on("message", (raw) => {
@@ -174,8 +198,22 @@ wss.on("connection", (ws, req) => {
         if (msg.type === "auth-changed") broadcastClients();
       } catch (_) {}
     });
-    ws.on("close", () => { clients.delete(ws); if (info.deviceId) broadcastClients(devices.spaceOf(info.deviceId)); });
-    ws.on("error", () => { clients.delete(ws); if (info.deviceId) broadcastClients(devices.spaceOf(info.deviceId)); });
+    ws.on("close", () => {
+      clients.delete(ws);
+      if (info.deviceId) {
+        const sid = devices.spaceOf(info.deviceId);
+        broadcastClients(sid);
+        broadcastFriendStatus(sid);
+      }
+    });
+    ws.on("error", () => {
+      clients.delete(ws);
+      if (info.deviceId) {
+        const sid = devices.spaceOf(info.deviceId);
+        broadcastClients(sid);
+        broadcastFriendStatus(sid);
+      }
+    });
   } catch (e) {
     console.error("[ws] 连接处理错误:", e.message);
     try { ws.close(); } catch (_) {}
@@ -429,7 +467,7 @@ app.post("/api/upload", (req, res) => {
 
 app.get("/api/images/:id", (req, res) => {
   const spaceId = spaceIdOf(req);
-  if (!store.imageInSpace(req.params.id, spaceId)) return res.status(404).json({ error: "图片不存在" });
+  if (!imageAccessible(spaceId, req.params.id)) return res.status(404).json({ error: "图片不存在" });
   const img = images.loadImage(req.params.id);
   if (!img) return res.status(404).json({ error: "图片文件缺失" });
   res.setHeader("Content-Type", img.mime);
@@ -570,6 +608,92 @@ app.get("/api/export/docx/:id", async (req, res) => {
   const s = store.get(req.params.id, spaceIdOf(req));
   if (!s) return res.status(404).json({ error: "未找到该周小结" });
   await handleExport(s, cfg, res);
+});
+
+/* ---------- 空间聊天（好友 / 消息） ---------- */
+app.get("/api/friends", (req, res) => {
+  const spaceId = spaceIdOf(req);
+  if (!spaceId) return res.status(403).json({ error: "请先加入一个数据空间" });
+  const list = friends.friendsOf(spaceId)
+    .map((fid) => {
+      const sp = spaces.findById(fid);
+      return { spaceId: fid, name: sp ? sp.name : "已删除的空间", online: spaceOnline(fid) };
+    })
+    .sort((a, b) => (a.online === b.online ? 0 : a.online ? -1 : 1));
+  res.json({ friends: list, unread: messages.unreadCount(spaceId) });
+});
+
+app.post("/api/friends", (req, res) => {
+  const spaceId = spaceIdOf(req);
+  if (!spaceId) return res.status(403).json({ error: "请先加入一个数据空间" });
+  const body = req.body || {};
+  const name = String(body.spaceName || "").trim();
+  const pin = String(body.pin || "");
+  if (!name) return res.status(400).json({ error: "请输入对方的空间名称" });
+  const sp = spaces.findByName(name);
+  if (!sp) return res.status(404).json({ error: "找不到该空间，请确认空间名称" });
+  if (sp.id === spaceId) return res.status(400).json({ error: "不能添加自己为好友" });
+  if (!spaces.verifyPin(sp, pin)) return res.status(403).json({ error: "空间密码错误", pinWrong: true });
+  friends.addFriend(spaceId, sp.id);
+  broadcastFriendStatus(sp.id);
+  broadcastFriendStatus(spaceId);
+  res.json({ ok: true, friend: { spaceId: sp.id, name: sp.name, online: spaceOnline(sp.id) } });
+});
+
+app.delete("/api/friends/:spaceId", (req, res) => {
+  const spaceId = spaceIdOf(req);
+  const fid = String(req.params.spaceId || "");
+  if (!spaceId || !fid) return res.status(400).json({ error: "参数错误" });
+  friends.removeFriend(spaceId, fid);
+  broadcastFriendStatus(fid);
+  broadcastFriendStatus(spaceId);
+  res.json({ ok: true });
+});
+
+app.get("/api/messages", (req, res) => {
+  const spaceId = spaceIdOf(req);
+  const friend = String(req.query.friend || "");
+  if (!spaceId) return res.status(403).json({ error: "请先加入一个数据空间" });
+  if (!friend || !friends.areFriends(spaceId, friend)) return res.status(403).json({ error: "不是好友" });
+  messages.markRead(spaceId, friend);
+  res.json({ messages: messages.list(spaceId, friend) });
+});
+
+app.post("/api/messages", (req, res) => {
+  const spaceId = spaceIdOf(req);
+  const body = req.body || {};
+  const to = String(body.toSpaceId || "");
+  if (!spaceId || !to) return res.status(400).json({ error: "参数错误" });
+  if (!friends.areFriends(spaceId, to)) return res.status(403).json({ error: "不是好友" });
+  const type = body.type === "image" ? "image" : "text";
+  if (type === "text" && !String(body.content || "").trim()) return res.status(400).json({ error: "消息内容不能为空" });
+  if (type === "image" && !String(body.imageId || "")) return res.status(400).json({ error: "缺少图片" });
+  const msg = messages.add({ from: spaceId, to, type, content: String(body.content || ""), imageId: String(body.imageId || "") });
+  broadcast({ type: "message-new", message: msg }, null, to);
+  broadcast({ type: "message-new", message: msg }, null, spaceId);
+  res.json({ message: msg });
+});
+
+app.post("/api/messages/read", (req, res) => {
+  const spaceId = spaceIdOf(req);
+  const friend = String((req.body || {}).friendSpaceId || "");
+  if (spaceId && friend) messages.markRead(spaceId, friend);
+  res.json({ ok: true });
+});
+
+app.post("/api/chat/upload", (req, res) => {
+  const spaceId = spaceIdOf(req);
+  if (!spaceId) return res.status(403).json({ error: "请先加入一个数据空间" });
+  const body = req.body || {};
+  const dataUrl = String(body.data || "");
+  const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!m) return res.status(400).json({ error: "图片数据格式错误" });
+  try {
+    const img = images.saveImage({ data: Buffer.from(m[2], "base64"), mime: m[1].toLowerCase(), width: body.width, height: body.height, name: body.name || "聊天图片" });
+    res.json({ image: { id: img.id, name: img.name, mime: img.mime, width: img.width, height: img.height, size: img.size, url: "/api/images/" + img.id, uploadedAt: new Date().toISOString() } });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
 });
 
 /* ---------- 404 / 错误 ---------- */

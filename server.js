@@ -611,7 +611,7 @@ app.post("/api/ai/image", async (req, res) => {
         apiKey: ac.imageApiKey || "",
         model: ac.imageModel || ""
       });
-      const img = images.saveImage({ data: buffer, mime, width, height, name: "AI生成-" + prompt.slice(0, 20) });
+      const img = images.saveImage({ data: buffer, mime, width, height, name: "AI生成图" + (count > 1 ? " " + (i + 1) : "") });
       if (summaryId) {
         const updated = store.addImage(summaryId, img, spaceId);
         if (updated) broadcast(fullSummaryPayload(updated), null, spaceId);

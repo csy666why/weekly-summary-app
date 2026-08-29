@@ -744,6 +744,7 @@ async function generateAI() {
       autosize(resultEl);
       $("resultCount").textContent = resultEl.value.length + " 字";
       resultEl.scrollTop = resultEl.scrollHeight;
+      renderResultPreview();
     }
   } catch (e) {
     if (e.name !== "AbortError") toast("生成中断: " + e.message, "err");
@@ -758,6 +759,7 @@ async function generateAI() {
     else setResultStatus("无结果");
     autosize(resultEl);
     $("resultCount").textContent = resultEl.value.length + " 字";
+    renderResultPreview();
   }
 }
 
@@ -772,8 +774,29 @@ function setResultStatus(text) {
   chip.textContent = text;
 }
 
+function normalizeImgTokens(text) {
+  return String(text || "")
+    .replace(/\{\{\s*img\s*:\s*([a-zA-Z0-9]+)\s*\}\}/g, "{{img:$1}}")
+    .replace(/【\s*图片\s*[:：]\s*([a-zA-Z0-9]+)\s*】/g, "{{img:$1}}")
+    .replace(/\[图片\s*[:：]\s*([a-zA-Z0-9]+)\s*\]/g, "{{img:$1}}");
+}
+/* 把 AI 结果渲染成 文字+图片 的预览 */
+function renderResultPreview() {
+  const box = $("resultPreview");
+  if (!box) return;
+  const val = normalizeImgTokens($("resultInput").value);
+  if (!val.trim()) { box.classList.add("hidden"); box.innerHTML = ""; return; }
+  box.classList.remove("hidden");
+  box.innerHTML = "";
+  const wrap = document.createElement("div");
+  wrap.className = "result-preview-body";
+  renderRichContent(wrap, val);
+  box.appendChild(wrap);
+  box.scrollTop = box.scrollHeight;
+}
+
 function cleanResult() {
-  return $("resultInput").value.replace(/\n*\[生成中断\][\s\S]*$/, "").trim();
+  return normalizeImgTokens($("resultInput").value.replace(/\n*\[生成中断\][\s\S]*$/, "")).trim();
 }
 
 function applyResult(replace) {
@@ -1287,6 +1310,10 @@ function openSettings() {
   $("cfgApiKey").placeholder = ai.keySet ? (ai.keyMask || "已配置") : "sk-…（未配置）";
   $("cfgTemp").value = ai.temperature != null ? ai.temperature : 0.7;
   $("cfgMaxTokens").value = ai.maxTokens || 4096;
+  $("cfgImageProvider").value = ai.imageProvider || "pollinations";
+  $("cfgImageModel").value = ai.imageModel || "";
+  $("cfgImageApiKey").value = "";
+  $("cfgImageApiKey").placeholder = ai.imageKeySet ? "已配置（留空保持不变）" : "sk-…（未配置）";
   $("testResult").textContent = "";
 
   const ac = cfg.access || {};
@@ -1326,7 +1353,10 @@ async function saveConfig() {
       model: $("cfgModel").value.trim(),
       apiKey: $("cfgApiKey").value.trim(),
       temperature: parseFloat($("cfgTemp").value),
-      maxTokens: parseInt($("cfgMaxTokens").value, 10)
+      maxTokens: parseInt($("cfgMaxTokens").value, 10),
+      imageProvider: $("cfgImageProvider").value,
+      imageModel: $("cfgImageModel").value.trim(),
+      imageApiKey: $("cfgImageApiKey").value.trim()
     },
     access: {
       enabled: $("cfgAccessEnabled").checked,
@@ -1340,6 +1370,36 @@ async function saveConfig() {
     closeModal("settingsModal");
     toast("设置已保存", "ok");
   } catch (e) { toast("保存失败: " + e.message, "err"); }
+}
+
+async function generateAiImage() {
+  const prompt = $("aiImgPrompt").value.trim();
+  if (!prompt) { toast("请输入图片描述", "err"); return; }
+  if (!state.current) { toast("请先选择一份周小结", "err"); return; }
+  const statusEl = $("aiImgStatus");
+  const btn = $("btnAiImg");
+  btn.disabled = true;
+  if (statusEl) statusEl.textContent = "生成中…（约 10-30 秒）";
+  try {
+    const r = await fetchJSON("/api/ai/image", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt, summaryId: state.current.id, width: 768, height: 512 }) });
+    const img = r.image;
+    if (!state.current.images.some((x) => x.id === img.id)) state.current.images.push(img);
+    renderImageGrid();
+    const secId = state.imageInsertTarget || (state.richSelection ? state.richSelection.sectionId : null);
+    if (secId) {
+      const range = state.richSelection && state.richSelection.sectionId === secId ? state.richSelection.range : null;
+      insertImagesEl([img], secId, range);
+      markDirty();
+      saveCurrent().catch(() => {});
+    }
+    if (statusEl) statusEl.textContent = "✓ 已生成并插入";
+    toast("AI 图片已生成", "ok");
+  } catch (e) {
+    if (statusEl) statusEl.textContent = "✗ " + e.message;
+    toast("生图失败: " + e.message, "err");
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 async function testAI() {
@@ -2022,6 +2082,8 @@ function bindEvents() {
   $("btnCopyUrl").addEventListener("click", copyUrl);
 
   $("btnAiToggle").addEventListener("click", () => document.body.classList.toggle("ai-collapsed"));
+  $("btnAiImg").addEventListener("click", generateAiImage);
+  $("aiImgPrompt").addEventListener("keydown", (e) => { if (e.key === "Enter") generateAiImage(); });
   $("btnAiReopen").addEventListener("click", () => document.body.classList.remove("ai-collapsed"));
 
   $("btnGateJoin").addEventListener("click", () => submitGateJoin(false));

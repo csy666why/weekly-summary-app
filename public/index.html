@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="周小结" />
-  <link rel="manifest" href="manifest.json?v=20260831b" />
+  <link rel="manifest" href="manifest.json?v=20260831c" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <meta name="theme-color" content="#04070d" />
@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="styles.css?v=20260831b" />
+<link rel="stylesheet" href="styles.css?v=20260831c" />
 </head>
 <body>
   <div class="bg-grid" aria-hidden="true"></div>
@@ -136,6 +136,7 @@
         <div class="ai-block result">
           <div class="ai-block-title">生成结果 <span class="status-chip hidden" id="resultStatus"></span></div>
           <textarea id="resultInput" spellcheck="false" placeholder="AI 生成的内容会流式显示在这里，可手动修改后应用…"></textarea>
+          <div class="ai-result-preview hidden" id="resultPreview"></div>
           <div class="ai-block-foot"><span class="mono" id="resultCount">0 字</span></div>
         </div>
 
@@ -207,6 +208,15 @@
           <div class="field-row">
             <label class="field"><span>温度</span><input id="cfgTemp" type="number" step="0.1" min="0" max="2" /></label>
             <label class="field"><span>最大输出</span><input id="cfgMaxTokens" type="number" step="256" min="256" /></label>
+          <div class="group-title" style="margin-top:8px">AI 生图</div>
+          <label class="field"><span>生图服务</span>
+            <select id="cfgImageProvider">
+              <option value="pollinations">Pollinations（免费，无需Key）</option>
+              <option value="siliconflow">硅基流动 SiliconFlow（需Key）</option>
+            </select>
+          </label>
+          <label class="field"><span>生图模型（SiliconFlow）</span><input id="cfgImageModel" placeholder="black-forest-labs/FLUX.1-schnell" autocomplete="off" /></label>
+          <label class="field"><span>生图 API Key（SiliconFlow）</span><input id="cfgImageApiKey" type="password" placeholder="sk-…" autocomplete="off" /></label>
           </div>
           <div class="ai-actions">
             <button class="btn ghost block" id="btnTestAI">✈ 测试连接</button>
@@ -255,6 +265,11 @@
           </div>
           <input type="file" id="ocrFileInput" accept="image/*" hidden />
           <span class="mono small dim" id="uploadStatus"></span>
+        </div>
+        <div class="ai-img-gen">
+          <input id="aiImgPrompt" placeholder="🎨 描述想生成的图片，如：车间混砂机设备示意图…" autocomplete="off" />
+          <button class="btn accent sm" id="btnAiImg">AI 生图</button>
+          <span class="mono small dim" id="aiImgStatus"></span>
         </div>
         <div class="ocr-result hidden" id="ocrResult">
           <div class="ocr-head">
@@ -417,16 +432,16 @@
 
   <div id="toast" aria-live="polite"></div>
 
-  <script defer src="app.js?v=20260831b"></script>
-  <script defer src="mobile-save.js?v=20260831b"></script>
+  <script defer src="app.js?v=20260831c"></script>
+  <script defer src="mobile-save.js?v=20260831c"></script>
     <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
-        navigator.serviceWorker.register("sw.js?v=20260831b").catch(function () {});
+        navigator.serviceWorker.register("sw.js?v=20260831c").catch(function () {});
       });
     }
   </script>
-  <script defer src="blocks.js?v=20260831b"></script>
+  <script defer src="blocks.js?v=20260831c"></script>
 </body>
 </html>
 

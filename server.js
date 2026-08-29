@@ -425,6 +425,9 @@ app.post("/api/config", (req, res) => {
     if (typeof a.temperature === "number") cfg.ai.temperature = Math.min(2, Math.max(0, a.temperature));
     if (typeof a.maxTokens === "number") cfg.ai.maxTokens = Math.min(32000, Math.max(256, Math.floor(a.maxTokens)));
     if (typeof a.apiKey === "string" && a.apiKey.trim()) cfg.ai.apiKey = a.apiKey.trim();
+    if (typeof a.imageProvider === "string") cfg.ai.imageProvider = a.imageProvider.trim() || "pollinations";
+    if (typeof a.imageModel === "string" && a.imageModel.trim()) cfg.ai.imageModel = a.imageModel.trim();
+    if (typeof a.imageApiKey === "string" && a.imageApiKey.trim()) cfg.ai.imageApiKey = a.imageApiKey.trim();
   }
   if (body.access && typeof body.access === "object") {
     cfg.access = cfg.access || {};
@@ -582,6 +585,36 @@ app.post("/api/ai/generate", async (req, res) => {
     } else {
       try { res.write("\n\n[生成中断] " + e.message); res.end(); } catch (_) {}
     }
+  }
+});
+
+/* ---------- AI 生成图片 ---------- */
+app.post("/api/ai/image", async (req, res) => {
+  const spaceId = spaceIdOf(req);
+  if (!spaceId) return res.status(403).json({ error: "请先加入一个数据空间" });
+  const body = req.body || {};
+  const prompt = String(body.prompt || "").trim();
+  if (!prompt) return res.status(400).json({ error: "请输入图片描述" });
+  const cfg = configLib.loadConfig();
+  const ac = cfg.ai || {};
+  try {
+    const { buffer, mime } = await ai.generateImage({
+      prompt,
+      width: body.width || 512,
+      height: body.height || 512,
+      provider: ac.imageProvider || "pollinations",
+      apiKey: ac.imageApiKey || "",
+      model: ac.imageModel || ""
+    });
+    const img = images.saveImage({ data: buffer, mime, width: body.width || 512, height: body.height || 512, name: "AI生成-" + prompt.slice(0, 20) });
+    const summaryId = String(body.summaryId || "");
+    if (summaryId) {
+      const updated = store.addImage(summaryId, img, spaceId);
+      if (updated) broadcast(fullSummaryPayload(updated), null, spaceId);
+    }
+    res.json({ image: { id: img.id, name: img.name, mime: img.mime, width: img.width, height: img.height, size: img.size, url: "/api/images/" + img.id, uploadedAt: new Date().toISOString() } });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
   }
 });
 

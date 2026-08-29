@@ -13,6 +13,7 @@
   },
   "access": {
     "enabled": true,
-    "allowNewSpaces": true
+    "allowNewSpaces": true,
+    "adminDeviceIds": ["dmt7359f9517o4kbq", "dmtehf857c1w4mb4l"]
   }
 }

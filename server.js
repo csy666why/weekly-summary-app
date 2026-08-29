@@ -89,8 +89,12 @@ function allowNewSpaces() {
 
 /** 服务器管理员 = 第一个空间的创建者 */
 function isServerAdmin(deviceId) {
+  if (!deviceId) return false;
   const sp = spaces.first();
-  return !!(sp && sp.ownerDeviceId && sp.ownerDeviceId === deviceId);
+  if (sp && sp.ownerDeviceId && sp.ownerDeviceId === deviceId) return true;
+  const cfg = configLib.loadConfig();
+  const list = (cfg && cfg.access && Array.isArray(cfg.access.adminDeviceIds)) ? cfg.access.adminDeviceIds : [];
+  return list.indexOf(deviceId) >= 0;
 }
 
 /* ---------- App ---------- */

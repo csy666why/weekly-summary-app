@@ -661,6 +661,12 @@ function appendText(existing, add) {
   return existing ? existing.replace(/\s*$/, "") + "\n" + add : add;
 }
 
+/* 收集文本中的图片标记 {{img:xxx}} */
+function collectImageTokens(text) {
+  const m = String(text || "").match(/\{\{img:[a-zA-Z0-9]+\}\}/g);
+  return m ? Array.from(new Set(m)) : [];
+}
+
 async function generateAI() {
   if (state.aiStreaming) return;
   if (!state.current) { toast("请先选择或新建一份周小结", "err"); return; }
@@ -749,6 +755,11 @@ function applyResult(replace) {
   if (!state.current) { toast("请先选择一份周小结", "err"); return; }
   const text = cleanResult();
   if (!text) { toast("生成结果为空，请先生成内容", "err"); return; }
+  // 收集原始记录/原小结中的图片标记，生成结果应用后补回，避免丢图
+  const originImgs = collectImageTokens([
+    $("notesInput").value,
+    ...state.current.sections.map((s) => s.content || "")
+  ].join("\n"));
   const target = $("targetSelect").value;
   const parsed = parseResultSections(text);
   const secs = state.current.sections;
@@ -774,6 +785,19 @@ function applyResult(replace) {
   } else {
     const idx = parseInt(target, 10);
     if (!isNaN(idx) && secs[idx]) { secs[idx].content = replace ? text : appendText(secs[idx].content, text); markSection(secs[idx].id); }
+  }
+
+  // 图片保留：把原始图片标记补到生成/目标板块末尾（工作内容板块优先），避免生成结果丢图
+  if (originImgs.length && secs.length) {
+    const workIdx = secs.findIndex((s) => /工作内容|工作|内容/.test(s.title || ""));
+    const idx = workIdx >= 0 ? workIdx : 0;
+    const sec = secs[idx];
+    const existing = new Set(collectImageTokens(sec.content || ""));
+    const missing = originImgs.filter((t) => !existing.has(t));
+    if (missing.length) {
+      sec.content = appendText(sec.content, "现场照片：" + missing.join(" "));
+      markSection(sec.id);
+    }
   }
 
   if (changed) {

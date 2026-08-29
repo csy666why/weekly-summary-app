@@ -710,3 +710,19 @@ body.notice-open{--notice-h:34px}
   .chat-modal:not(.chat-open) .chat-main{display:none}
 }
 .guide-step{padding:8px 4px;font-size:14px;color:#d9e7f5;line-height:1.8;border-bottom:1px dashed rgba(94,200,255,.12)}
+
+/* ---------- 独立聊天窗口（可拖动） ---------- */
+.chat-friends-wrap{display:flex;flex-direction:column;height:calc(100% - 52px);min-height:300px}
+.chat-side-tip{margin:6px 2px 0;font-size:11px;color:#64748b}
+.chat-window{position:fixed;z-index:180;width:340px;height:460px;max-width:94vw;max-height:80vh;background:rgba(10,16,28,.97);border:1px solid rgba(94,200,255,.3);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.55);display:flex;flex-direction:column;overflow:hidden}
+.chat-win-head{display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(34,211,238,.08);border-bottom:1px solid rgba(94,200,255,.2);cursor:grab;user-select:none}
+.chat-win-head:active{cursor:grabbing}
+.chat-win-title{flex:1;font-size:14px;color:#e2e8f0;font-weight:600}
+.chat-win-close{background:transparent;border:none;color:#94a3b8;cursor:pointer;font-size:15px;padding:2px 6px;border-radius:6px}
+.chat-win-close:hover{color:#fb7185;background:rgba(251,113,133,.1)}
+.chat-window .chat-conv{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.chat-window .chat-input{border-top:1px solid rgba(94,200,255,.14)}
+/* ---------- 图片双击放大 ---------- */
+.modal-backdrop.lightbox{display:flex;align-items:center;justify-content:center;cursor:zoom-out}
+.modal-backdrop.lightbox.hidden{display:none}
+.modal-backdrop.lightbox img{max-width:92vw;max-height:90vh;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.6)}

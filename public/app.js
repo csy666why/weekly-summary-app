@@ -1063,7 +1063,6 @@ async function openChat() {
     state.chat.friends = data.friends || [];
     state.chat.requests = data.requests || { incoming: [], outgoing: [] };
     renderChatFriends();
-    if (!state.chat.activeFriend && state.chat.friends.length) openConversation(state.chat.friends[0].spaceId);
   } catch (e) { toast("加载好友失败: " + e.message, "err"); }
   loadSpaceInfo();
   if (state.auth.serverAdmin) {
@@ -1195,12 +1194,9 @@ async function openConversation(spaceId) {
   if (!f) return;
   state.chat.activeFriend = spaceId;
   state.chat.unread[spaceId] = 0;
-  $("chatModal").classList.add("chat-open");
-  const mt = $("chatMainTitle");
-  if (mt) mt.textContent = f.name;
+  showChatWindow(f);
   renderChatFriends();
   updateChatBadge();
-  $("chatInputArea").classList.remove("hidden");
   const ce = $("chatEmpty");
   if (ce) ce.style.display = "none";
   $("chatTextInput").placeholder = "发给 " + f.name + "…";
@@ -1208,6 +1204,22 @@ async function openConversation(spaceId) {
     const data = await fetchJSON("/api/messages?friend=" + encodeURIComponent(spaceId));
     renderChatMessages(data.messages || []);
   } catch (e) { toast("加载消息失败: " + e.message, "err"); }
+}
+function showChatWindow(f) {
+  const win = $("chatWindow");
+  win.classList.remove("hidden");
+  $("chatWinTitle").textContent = f.name;
+  $("chatWinDot").className = "chat-dot " + (f.online ? "on" : "off");
+  if (!win._pos) {
+    win._pos = true;
+    win.style.left = Math.max(8, window.innerWidth - 380) + "px";
+    win.style.top = Math.max(64, window.innerHeight - 500) + "px";
+  }
+  setTimeout(() => { try { $("chatTextInput").focus(); } catch (_) {} }, 50);
+}
+function closeChatWindow() {
+  $("chatWindow").classList.add("hidden");
+  state.chat.activeFriend = null;
 }
 function bindChatActions() {
   const conv = $("chatConv");
@@ -1335,7 +1347,7 @@ function removeChatFriend(spaceId) {
   fetchJSON("/api/friends/" + encodeURIComponent(spaceId), { method: "DELETE" })
     .then(() => {
       state.chat.friends = state.chat.friends.filter((x) => x.spaceId !== spaceId);
-      if (state.chat.activeFriend === spaceId) { state.chat.activeFriend = null; $("chatInputArea").classList.add("hidden"); $("chatEmpty").classList.remove("hidden"); }
+      if (state.chat.activeFriend === spaceId) closeChatWindow();
       renderChatFriends();
     })
     .catch((e) => toast("删除失败: " + e.message, "err"));
@@ -1344,7 +1356,7 @@ function onChatMessage(msg) {
   const m = msg.message;
   if (!m) return;
   const isMine = m.from === state.auth.spaceId;
-  const chatVisible = !$("chatModal").classList.contains("hidden");
+  const chatVisible = !$("chatWindow").classList.contains("hidden");
   if (!isMine) {
     if (!chatVisible || state.chat.activeFriend !== m.from) {
       state.chat.unread[m.from] = (state.chat.unread[m.from] || 0) + 1;
@@ -1947,6 +1959,16 @@ async function runOcr(file) {
   });
   return (result && result.data && result.data.text) || "";
 }
+function openImgLightbox(src) {
+  const lb = $("imgLightbox");
+  $("imgLightboxImg").src = src;
+  lb.classList.remove("hidden");
+}
+document.addEventListener("dblclick", (e) => {
+  const img = e.target.closest ? e.target.closest("img.rich-img") : null;
+  if (img && img.dataset && img.dataset.imgId) openImgLightbox(img.src);
+});
+
 /* 把识别文字插入正文：优先插到当前光标/最近编辑位置，否则追加到第一个板块 */
 function insertOcrText(text) {
   const active = document.activeElement;
@@ -2237,7 +2259,8 @@ function bindEvents() {
   $("adminQuery").addEventListener("keydown", (e) => { if (e.key === "Enter") appointAdmin($("adminQuery").value.trim(), "add"); });
   $("btnNoticeClose").addEventListener("click", hideBanner);
   $("btnChat").addEventListener("click", openChat);
-  $("btnChatBack").addEventListener("click", () => $("chatModal").classList.remove("chat-open"));
+  $("btnChatWinClose").addEventListener("click", closeChatWindow);
+  $("imgLightbox").addEventListener("click", () => $("imgLightbox").classList.add("hidden"));
   $("chatModal").querySelector('[data-close="chatModal"]').addEventListener("click", closeChat);
   $("btnAddFriend").addEventListener("click", () => { $("friendErr").textContent = ""; $("friendModal").classList.remove("hidden"); });
   $("btnFriendSubmit").addEventListener("click", addFriendSubmit);
@@ -2351,5 +2374,27 @@ async function init() {
   maybeShowGuide();
 }
 
+(function initChatDrag() {
+  const win = document.getElementById("chatWindow");
+  const head = document.getElementById("chatWinHead");
+  if (!win || !head) return;
+  let dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
+  const down = (e) => {
+    if (e.target.closest && e.target.closest("button")) return;
+    dragging = true;
+    sx = e.clientX; sy = e.clientY;
+    const r = win.getBoundingClientRect();
+    ox = r.left; oy = r.top;
+    if (e.preventDefault) e.preventDefault();
+  };
+  const move = (e) => { if (!dragging) return; win.style.left = (ox + e.clientX - sx) + "px"; win.style.top = (oy + e.clientY - sy) + "px"; };
+  const up = () => { dragging = false; };
+  head.addEventListener("mousedown", down);
+  document.addEventListener("mousemove", move);
+  document.addEventListener("mouseup", up);
+  head.addEventListener("touchstart", (e) => { const t = e.touches[0]; down({ clientX: t.clientX, clientY: t.clientY, target: e.target, preventDefault: function () { e.preventDefault(); } }); }, { passive: false });
+  document.addEventListener("touchmove", (e) => { const t = e.touches[0]; move({ clientX: t.clientX, clientY: t.clientY }); }, { passive: true });
+  document.addEventListener("touchend", up);
+})();
 document.addEventListener("DOMContentLoaded", init);
 document.getElementById("btnGuideClose").addEventListener("click", () => { try { localStorage.setItem("wos_guide_v1", "1"); } catch (_) {} document.getElementById("guideModal").classList.add("hidden"); });

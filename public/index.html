@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="周小结" />
-  <link rel="manifest" href="manifest.json?v=20260831d" />
+  <link rel="manifest" href="manifest.json?v=20260831e" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <meta name="theme-color" content="#04070d" />
@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="styles.css?v=20260831d" />
+<link rel="stylesheet" href="styles.css?v=20260831e" />
 </head>
 <body>
   <div class="bg-grid" aria-hidden="true"></div>
@@ -376,33 +376,40 @@
         <div class="chat-admin-head mono small dim">全站空间 · 仅管理员可见</div>
         <div class="chat-admin-list" id="chatAdminList"></div>
       </div>
-      <div class="chat-body">
-        <div class="chat-side">
-          <div class="chat-side-head">
-            <button class="btn ghost sm block" id="btnAddFriend">＋ 添加好友</button>
-          </div>
-          <div class="chat-friends" id="chatFriends"></div>
-          <div class="chat-side-foot mono small dim" id="chatFriendTip">输入对方的「空间名称 + 密码」即可成为好友，互相发消息、分享图片；小结数据仍互相隔离。</div>
+      <div class="chat-friends-wrap">
+        <div class="chat-side-head">
+          <button class="btn ghost sm block" id="btnAddFriend">＋ 添加好友</button>
+          <p class="chat-side-tip mono small dim">点好友右侧 ✉ 打开聊天窗口</p>
         </div>
-        <div class="chat-main">
-          <div class="chat-main-head">
-            <button class="btn ghost sm" id="btnChatBack">← 好友</button>
-            <span class="chat-main-title" id="chatMainTitle">聊天</span>
-          </div>
-          <div class="chat-conv" id="chatConv">
-            <div class="chat-empty" id="chatEmpty">选择左侧好友开始聊天</div>
-          </div>
-          <div class="chat-input hidden" id="chatInputArea">
-            <div class="chat-input-row">
-              <input id="chatTextInput" placeholder="输入消息…" autocomplete="off" />
-              <button class="btn ghost sm" id="btnChatImage" title="发送图片">📎</button>
-              <button class="btn accent sm" id="btnChatSend">发送</button>
-            </div>
-            <input type="file" id="chatFileInput" accept="image/*" multiple hidden />
-          </div>
-        </div>
+        <div class="chat-friends" id="chatFriends"></div>
+        <div class="chat-side-foot mono small dim" id="chatFriendTip">输入对方的「空间名称 + 密码」即可成为好友；小结数据仍互相隔离。</div>
       </div>
     </div>
+  </div>
+
+  <!-- 聊天窗口（独立、可拖动） -->
+  <div class="chat-window hidden" id="chatWindow">
+    <div class="chat-win-head" id="chatWinHead">
+      <span class="chat-dot off" id="chatWinDot"></span>
+      <span class="chat-win-title" id="chatWinTitle">聊天</span>
+      <button class="chat-win-close" id="btnChatWinClose" title="关闭">✕</button>
+    </div>
+    <div class="chat-conv" id="chatConv">
+      <div class="chat-empty" id="chatEmpty">选择左侧好友开始聊天</div>
+    </div>
+    <div class="chat-input" id="chatInputArea">
+      <div class="chat-input-row">
+        <input id="chatTextInput" placeholder="输入消息…" autocomplete="off" />
+        <button class="btn ghost sm" id="btnChatImage" title="发送图片">📎</button>
+        <button class="btn accent sm" id="btnChatSend">发送</button>
+      </div>
+      <input type="file" id="chatFileInput" accept="image/*" multiple hidden />
+    </div>
+  </div>
+
+  <!-- 图片放大预览 -->
+  <div class="modal-backdrop hidden lightbox" id="imgLightbox">
+    <img id="imgLightboxImg" src="" alt="图片预览" />
   </div>
 
   <!-- 添加好友弹窗 -->
@@ -478,16 +485,16 @@
 
   <div id="toast" aria-live="polite"></div>
 
-  <script defer src="app.js?v=20260831d"></script>
-  <script defer src="mobile-save.js?v=20260831d"></script>
+  <script defer src="app.js?v=20260831e"></script>
+  <script defer src="mobile-save.js?v=20260831e"></script>
     <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
-        navigator.serviceWorker.register("sw.js?v=20260831d").catch(function () {});
+        navigator.serviceWorker.register("sw.js?v=20260831e").catch(function () {});
       });
     }
   </script>
-  <script defer src="blocks.js?v=20260831d"></script>
+  <script defer src="blocks.js?v=20260831e"></script>
 </body>
 </html>
 

@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="周小结" />
-  <link rel="manifest" href="manifest.json?v=20260830d" />
+  <link rel="manifest" href="manifest.json?v=20260830e" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <meta name="theme-color" content="#04070d" />
@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="styles.css?v=20260830d" />
+<link rel="stylesheet" href="styles.css?v=20260830e" />
 </head>
 <body>
   <div class="bg-grid" aria-hidden="true"></div>
@@ -280,6 +280,10 @@
         <span class="chat-me">我的空间ID：<b id="chatMyCode">—</b> <button class="btn ghost sm" id="btnCopyMyCode" title="复制我的空间ID">⧉ 复制</button></span>
         <span class="chat-stats mono small dim" id="chatStats">—</span>
       </div>
+      <div class="chat-admin hidden" id="chatAdmin">
+        <div class="chat-admin-head mono small dim">全站空间 · 仅管理员可见</div>
+        <div class="chat-admin-list" id="chatAdminList"></div>
+      </div>
       <div class="chat-body">
         <div class="chat-side">
           <div class="chat-side-head">
@@ -378,16 +382,16 @@
 
   <div id="toast" aria-live="polite"></div>
 
-  <script defer src="app.js?v=20260830d"></script>
-  <script defer src="mobile-save.js?v=20260830d"></script>
+  <script defer src="app.js?v=20260830e"></script>
+  <script defer src="mobile-save.js?v=20260830e"></script>
     <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
-        navigator.serviceWorker.register("sw.js?v=20260830d").catch(function () {});
+        navigator.serviceWorker.register("sw.js?v=20260830e").catch(function () {});
       });
     }
   </script>
-  <script defer src="blocks.js?v=20260830d"></script>
+  <script defer src="blocks.js?v=20260830e"></script>
 </body>
 </html>
 

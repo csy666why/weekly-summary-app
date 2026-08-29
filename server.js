@@ -708,6 +708,26 @@ app.post("/api/chat/upload", (req, res) => {
   }
 });
 
+/* ---------- 全站空间列表（仅管理员可见，不含密码） ---------- */
+app.get("/api/admin/spaces", (req, res) => {
+  const deviceId = getDeviceId(req);
+  if (!isServerAdmin(deviceId)) return res.status(403).json({ error: "仅管理员可查看" });
+  const online = onlineSpaces();
+  const list = spaces.list().map((sp) => {
+    const owner = sp.ownerDeviceId ? devices.find(sp.ownerDeviceId) : null;
+    return {
+      id: sp.id,
+      code: sp.code || "",
+      name: sp.name,
+      ownerName: owner ? (owner.name || "") : "",
+      online: online.has(sp.id),
+      createdAt: sp.createdAt || ""
+    };
+  });
+  const onlineCount = list.filter((x) => x.online).length;
+  res.json({ spaces: list, total: list.length, online: onlineCount });
+});
+
 /* ---------- 404 / 错误 ---------- */
 app.use("/api", (req, res) => res.status(404).json({ error: "接口不存在" }));
 

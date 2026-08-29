@@ -870,6 +870,37 @@ async function openChat() {
     if (!state.chat.activeFriend && state.chat.friends.length) openConversation(state.chat.friends[0].spaceId);
   } catch (e) { toast("加载好友失败: " + e.message, "err"); }
   loadSpaceInfo();
+  if (state.auth.serverAdmin) {
+    loadAdminSpaces();
+    clearInterval(state.chat.adminTimer);
+    state.chat.adminTimer = setInterval(loadAdminSpaces, 8000);
+  } else {
+    const adm = $("chatAdmin");
+    if (adm) adm.classList.add("hidden");
+  }
+}
+async function loadAdminSpaces() {
+  if (!state.auth.serverAdmin) return;
+  try {
+    const data = await fetchJSON("/api/admin/spaces");
+    const box = $("chatAdminList");
+    if (!box) return;
+    box.innerHTML = "";
+    if (!data.spaces.length) { box.innerHTML = '<div class="chat-friend-empty">暂无空间</div>'; }
+    for (const sp of data.spaces) {
+      const el = document.createElement("div");
+      el.className = "chat-admin-row";
+      el.innerHTML =
+        '<span class="chat-dot ' + (sp.online ? "on" : "off") + '"></span>' +
+        '<span class="chat-admin-name">' + escapeHtml(sp.name) + "</span>" +
+        '<span class="chat-admin-id mono">ID ' + escapeHtml(sp.code) + "</span>" +
+        '<span class="chat-admin-user">' + escapeHtml(sp.ownerName || "—") + "</span>" +
+        '<span class="chat-admin-status ' + (sp.online ? "on" : "off") + '">' + (sp.online ? "在线" : "离线") + "</span>";
+      box.appendChild(el);
+    }
+    const adm = $("chatAdmin");
+    if (adm) adm.classList.remove("hidden");
+  } catch (_) {}
 }
 async function loadSpaceInfo() {
   try {
@@ -882,6 +913,8 @@ async function loadSpaceInfo() {
 }
 function closeChat() {
   $("chatModal").classList.add("hidden");
+  clearInterval(state.chat.adminTimer);
+  state.chat.adminTimer = null;
 }
 function renderChatFriends() {
   const box = $("chatFriends");

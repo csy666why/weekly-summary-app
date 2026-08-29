@@ -953,7 +953,8 @@ async function openConversation(spaceId) {
   renderChatFriends();
   updateChatBadge();
   $("chatInputArea").classList.remove("hidden");
-  $("chatEmpty").classList.add("hidden");
+  const ce = $("chatEmpty");
+  if (ce) ce.style.display = "none";
   $("chatTextInput").placeholder = "发给 " + f.name + "…";
   try {
     const data = await fetchJSON("/api/messages?friend=" + encodeURIComponent(spaceId));
@@ -962,16 +963,22 @@ async function openConversation(spaceId) {
 }
 function renderChatMessages(list) {
   const conv = $("chatConv");
-  conv.innerHTML = "";
+  conv.querySelectorAll(".chat-msg").forEach((node) => node.remove());
+  const empty = $("chatEmpty");
+  if (!empty) return;
   if (!list.length) {
-    conv.innerHTML = '<div class="chat-empty" style="display:block">还没有消息，发一句打个招呼吧</div>';
+    empty.style.display = "block";
+    empty.textContent = "还没有消息，发一句打个招呼吧";
     return;
   }
+  empty.style.display = "none";
   for (const m of list) appendChatMessage(m, false);
   conv.scrollTop = conv.scrollHeight;
 }
 function appendChatMessage(m, scroll) {
   const conv = $("chatConv");
+  const ce = $("chatEmpty");
+  if (ce) ce.style.display = "none";
   const mine = m.from === state.auth.spaceId;
   const el = document.createElement("div");
   el.className = "chat-msg " + (mine ? "mine" : "theirs");

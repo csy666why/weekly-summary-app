@@ -36,6 +36,12 @@
     ".empty-canvas-title{font-family:var(--display);font-size:15px;letter-spacing:2px;color:var(--cyan-bright)}",
     ".empty-canvas-sub{margin-top:8px;color:var(--text-faint);font-size:13px;line-height:1.8}",
     ".pv-date{color:var(--cyan-bright);font-family:var(--mono);font-weight:600}",
+    ".rich-img{cursor:grab}",
+    ".rich-img:active{cursor:grabbing}",
+    ".rich-img-toolbar{position:fixed;z-index:99999;display:flex;gap:4px;padding:6px;background:rgba(10,14,22,.95);border:1px solid rgba(94,200,255,.4);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.5)}",
+    ".rich-img-toolbar button{background:transparent;border:1px solid rgba(94,200,255,.3);color:#dbeafe;font-size:12px;padding:4px 8px;border-radius:6px;cursor:pointer;white-space:nowrap}",
+    ".rich-img-toolbar button:hover{background:rgba(34,211,238,.15);border-color:#22d3ee}",
+    ".rich-img-toolbar button[data-act=\"del\"]:hover{background:rgba(251,113,133,.15);border-color:#fb7185;color:#fda4af}",
     "@media(max-width:720px){.day-row{flex-wrap:wrap}.day-date-wrap{width:100%}.day-date{width:100%}.day-content{flex-basis:100%}}"
   ].join("");
   const el = document.createElement("style");
@@ -154,6 +160,127 @@ function bindRich(el, sec) {
   el.addEventListener("mouseup", makeSaveRichSel(sec));
   el.addEventListener("keyup", makeSaveRichSel(sec));
   el.addEventListener("paste", (e) => handleRichPaste(e, sec.id));
+  bindRichImageMove(el, sec);
+}
+
+/* ---------- 富文本图片：拖拽移动 + 点击工具栏 ---------- */
+function hideImageToolbar() {
+  const tb = document.getElementById("richImgToolbar");
+  if (tb) tb.remove();
+  state._activeImg = null;
+}
+function bindRichImageMove(el, sec) {
+  el.addEventListener("dragstart", (e) => {
+    const img = e.target.closest ? e.target.closest("img.rich-img") : null;
+    if (!img || !el.contains(img)) return;
+    state._dragImg = { el: img, sectionId: sec.id };
+    e.dataTransfer.effectAllowed = "move";
+    try { e.dataTransfer.setData("text/plain", img.dataset.imgId || ""); } catch (_) {}
+  });
+  el.addEventListener("dragover", (e) => {
+    if (state._dragImg && el.contains(state._dragImg.el)) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }
+  });
+  el.addEventListener("drop", (e) => {
+    const drag = state._dragImg;
+    state._dragImg = null;
+    hideImageToolbar();
+    if (!drag || !el.contains(drag.el)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    let range = null;
+    if (document.caretRangeFromPoint) range = document.caretRangeFromPoint(e.clientX, e.clientY);
+    if (range && el.contains(range.startContainer)) moveRichImageTo(drag.el, range, sec);
+  });
+  el.addEventListener("dragend", () => { state._dragImg = null; });
+  el.addEventListener("click", (e) => {
+    const img = e.target.closest ? e.target.closest("img.rich-img") : null;
+    if (!img || !el.contains(img)) { hideImageToolbar(); return; }
+    showImageToolbar(img, sec);
+  });
+}
+function showImageToolbar(imgEl, sec) {
+  hideImageToolbar();
+  state._activeImg = imgEl;
+  const tb = document.createElement("div");
+  tb.id = "richImgToolbar";
+  tb.className = "rich-img-toolbar";
+  tb.innerHTML =
+    '<button type="button" data-dir="-1" title="向前移动">◀ 前移</button>' +
+    '<button type="button" data-dir="1" title="向后移动">后移 ▶</button>' +
+    '<button type="button" data-act="del" title="删除图片">✕ 删除</button>';
+  document.body.appendChild(tb);
+  const place = () => {
+    const pos = imgEl.getBoundingClientRect();
+    tb.style.left = Math.max(4, pos.left) + "px";
+    tb.style.top = Math.max(4, pos.top - tb.offsetHeight - 8) + "px";
+  };
+  place();
+  tb.addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    const img = state._activeImg;
+    if (!img || !img.isConnected) { hideImageToolbar(); return; }
+    if (b.dataset.act === "del") {
+      if (img.parentNode) img.parentNode.removeChild(img);
+      state.edited.sections[sec.id] = true;
+      markDirty();
+      hideImageToolbar();
+      toast("已删除图片", "ok");
+      return;
+    }
+    const dir = parseInt(b.dataset.dir, 10) || 0;
+    if (moveRichImageBy(img, dir)) {
+      state.edited.sections[sec.id] = true;
+      markDirty();
+      place();
+    }
+  });
+  setTimeout(() => {
+    document.addEventListener("mousedown", function onDoc(e) {
+      if (tb && !tb.contains(e.target) && !(e.target.closest && e.target.closest("img.rich-img") === imgEl)) {
+        hideImageToolbar();
+        document.removeEventListener("mousedown", onDoc);
+      }
+    });
+  }, 0);
+}
+/* 按行移动图片：dir=-1 前移一行，dir=1 后移一行 */
+function moveRichImageBy(imgEl, dir) {
+  const editor = imgEl.closest(".sec-content, .day-content");
+  if (!editor || !editor.contains(imgEl)) return false;
+  const isBreak = (n) => n && n.nodeType === 1 && (n.tagName === "BR" || n.tagName === "DIV" || n.tagName === "P");
+  if (dir < 0) {
+    let node = imgEl.previousSibling;
+    while (node && !isBreak(node)) node = node.previousSibling;
+    if (node) { editor.insertBefore(imgEl, node); }
+    else { editor.insertBefore(imgEl, editor.firstChild); }
+    return true;
+  }
+  let node = imgEl.nextSibling;
+  while (node && !isBreak(node)) node = node.nextSibling;
+  if (node && node.nextSibling) { editor.insertBefore(imgEl, node.nextSibling); }
+  else { editor.appendChild(imgEl); }
+  return true;
+}
+/* 拖拽落点：把图片插入到指定光标位置 */
+function moveRichImageTo(imgEl, range, sec) {
+  try {
+    const clone = imgEl.cloneNode(true);
+    clone.draggable = true;
+    range.deleteContents();
+    range.insertNode(clone);
+    const br = document.createElement("br");
+    range.setStartAfter(clone);
+    range.insertNode(br);
+    range.setStartAfter(br);
+    if (imgEl.parentNode) imgEl.parentNode.removeChild(imgEl);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    state.edited.sections[sec.id] = true;
+    markDirty();
+    return true;
+  } catch (_) { return false; }
 }
 
 function bindCardCommon(card, sec) {
@@ -446,7 +573,7 @@ window.insertImageEl = function (image, sectionId, range) {
   imgEl.dataset.imgId = image.id;
   imgEl.src = imageUrl(image.id);
   imgEl.alt = "图片";
-  imgEl.draggable = false;
+  imgEl.draggable = true;
   r.insertNode(imgEl);
   const br = document.createElement("br");
   r.setStartAfter(imgEl);
@@ -664,3 +791,7 @@ function addBlock(type) {
   }
   ensureMenu();
 })();
+
+/* ---------- 防止图片被拖出编辑区（避免浏览器直接打开图片） ---------- */
+document.addEventListener("dragover", (e) => { if (state._dragImg) e.preventDefault(); });
+document.addEventListener("drop", (e) => { if (state._dragImg) { e.preventDefault(); state._dragImg = null; } });

@@ -1098,7 +1098,7 @@ function appendRichLine(parent, line) {
     img.dataset.imgId = m[1];
     img.src = imageUrl(m[1]);
     img.alt = "图片";
-    img.draggable = false;
+    img.draggable = true;
     img.addEventListener("error", () => img.classList.add("broken"));
     parent.appendChild(img);
     last = m.index + m[0].length;
@@ -1143,7 +1143,7 @@ function insertImageEl(image, sectionId, range) {
   imgEl.dataset.imgId = image.id;
   imgEl.src = imageUrl(image.id);
   imgEl.alt = "图片";
-  imgEl.draggable = false;
+  imgEl.draggable = true;
   r.insertNode(imgEl);
   const br = document.createElement("br");
   r.setStartAfter(imgEl);

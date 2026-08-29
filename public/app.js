@@ -1273,6 +1273,8 @@ function appendChatMessage(m, scroll) {
     ? '<span class="chat-actions"><button data-act="recall" title="撤回">↩</button><button data-act="del" title="删除">✕</button></span>'
     : "";
   el.innerHTML = body + '<div class="chat-meta">' + readMark + '<span class="chat-time">' + time + "</span>" + actions + "</div>";
+  const chatImg = el.querySelector(".chat-img img");
+  if (chatImg) chatImg.addEventListener("dblclick", (e) => { e.preventDefault(); e.stopPropagation(); openImgLightbox(chatImg.src); });
   conv.appendChild(el);
   if (scroll !== false) conv.scrollTop = conv.scrollHeight;
 }
@@ -1645,6 +1647,8 @@ function renderImageGrid() {
       "</div>";
     card.querySelector('[data-act="insert"]').addEventListener("click", () => insertImageToken(img));
     card.querySelector('[data-act="del"]').addEventListener("click", () => deleteImage(img));
+    const thumb = card.querySelector(".image-thumb img");
+    if (thumb) thumb.addEventListener("dblclick", () => openImgLightbox(imageUrl(img.id)));
     grid.appendChild(card);
   }
 }
@@ -1811,6 +1815,7 @@ function appendRichLine(parent, line) {
     img.alt = "图片";
     img.draggable = true;
     img.addEventListener("error", () => img.classList.add("broken"));
+    img.addEventListener("dblclick", (e) => { e.preventDefault(); e.stopPropagation(); openImgLightbox(img.src); });
     parent.appendChild(img);
     last = m.index + m[0].length;
   }
@@ -1855,6 +1860,7 @@ function insertImageEl(image, sectionId, range) {
   imgEl.src = imageUrl(image.id);
   imgEl.alt = "图片";
   imgEl.draggable = true;
+  imgEl.addEventListener("dblclick", (e) => { e.preventDefault(); e.stopPropagation(); openImgLightbox(imgEl.src); });
   r.insertNode(imgEl);
   const br = document.createElement("br");
   r.setStartAfter(imgEl);

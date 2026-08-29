@@ -723,6 +723,6 @@ body.notice-open{--notice-h:34px}
 .chat-window .chat-conv{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
 .chat-window .chat-input{border-top:1px solid rgba(94,200,255,.14)}
 /* ---------- 图片双击放大 ---------- */
-.modal-backdrop.lightbox{display:flex;align-items:center;justify-content:center;cursor:zoom-out}
+.modal-backdrop.lightbox{display:flex;align-items:center;justify-content:center;cursor:zoom-out;z-index:300}
 .modal-backdrop.lightbox.hidden{display:none}
 .modal-backdrop.lightbox img{max-width:92vw;max-height:90vh;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.6)}

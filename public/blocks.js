@@ -574,6 +574,7 @@ window.insertImageEl = function (image, sectionId, range) {
   imgEl.src = imageUrl(image.id);
   imgEl.alt = "图片";
   imgEl.draggable = true;
+  imgEl.addEventListener("dblclick", (e) => { e.preventDefault(); e.stopPropagation(); openImgLightbox(imgEl.src); });
   r.insertNode(imgEl);
   const br = document.createElement("br");
   r.setStartAfter(imgEl);

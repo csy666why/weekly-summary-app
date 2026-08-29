@@ -571,11 +571,11 @@ body {
   pointer-events: none;
 }
 .sec-content.rich img.rich-img {
-  max-width: 100%;
+  max-width: 220px;
   max-height: 260px;
   border-radius: 8px;
   border: 1px solid var(--line);
-  margin: 4px 0;
+  margin: 4px 6px;
   display: inline-block;
   vertical-align: middle;
   background: #050a12;

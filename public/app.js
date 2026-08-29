@@ -1283,6 +1283,45 @@ async function handleImageUpload(file, insertAfter) {
   }
 }
 
+/* 批量上传并插入多张图片 */
+async function handleImagesUpload(files) {
+  if (!state.current) { toast("请先选择一份周小结", "err"); return; }
+  const list = Array.from(files || []);
+  if (!list.length) return;
+  const active = document.activeElement;
+  const inEditor = active && active.classList && (active.classList.contains("sec-content") || active.classList.contains("day-content"));
+  const secId = state.imageInsertTarget || (inEditor ? (active.closest(".section-card") ? active.closest(".section-card").dataset.id : null) : null)
+    || (state.richSelection && state.richSelection.sectionId) || null;
+  const statusEl = $("uploadStatus");
+  if (statusEl) statusEl.textContent = "上传中 0/" + list.length;
+  const imgs = [];
+  for (let i = 0; i < list.length; i++) {
+    try {
+      const prep = await prepareImageFile(list[i]);
+      const res = await fetchJSON("/api/upload", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ summaryId: state.current.id, name: prep.name, data: prep.dataUrl, width: prep.width, height: prep.height })
+      });
+      if (!state.current.images.some((x) => x.id === res.image.id)) state.current.images.push(res.image);
+      imgs.push(res.image);
+      if (statusEl) statusEl.textContent = "上传中 " + (i + 1) + "/" + list.length;
+    } catch (e) {
+      toast("第 " + (i + 1) + " 张上传失败: " + e.message, "err");
+    }
+  }
+  if (secId && imgs.length) {
+    const range = state.richSelection && state.richSelection.sectionId === secId ? state.richSelection.range : null;
+    insertImagesEl(imgs, secId, range);
+    markDirty();
+    saveCurrent().catch(() => {});
+    toast("已插入 " + imgs.length + " 张图片", "ok");
+  } else if (imgs.length) {
+    renderImageGrid();
+    toast("已上传 " + imgs.length + " 张图片到图片库", "ok");
+  }
+  if (statusEl) statusEl.textContent = "";
+}
+
 function deleteImage(img) {
   if (!confirm("删除图片「" + (img.name || "图片") + "」？正文中的该图片标记也会被移除。")) return;
   fetchJSON("/api/images/" + encodeURIComponent(img.id), { method: "DELETE" })
@@ -1366,6 +1405,47 @@ function insertImageEl(image, sectionId, range) {
   r.insertNode(imgEl);
   const br = document.createElement("br");
   r.setStartAfter(imgEl);
+  r.insertNode(br);
+  r.setStartAfter(br);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(r);
+  state.edited.sections[sectionId] = true;
+  markDirty();
+  autosize(editor);
+  return true;
+}
+
+/* 连续插入多张图片（从左到右排列），末尾补一个换行 */
+function insertImagesEl(images, sectionId, range) {
+  const list = Array.isArray(images) ? images : [images];
+  if (!list.length) return false;
+  const card = sectionId ? $("sections").querySelector('.section-card[data-id="' + sectionId + '"]') : null;
+  let editor = card ? (card.querySelector(".sec-content") || card.querySelector(".day-content")) : null;
+  if (range && range.commonAncestorContainer) {
+    const c = closestEl(range.commonAncestorContainer, ".sec-content, .day-content");
+    if (c && card && card.contains(c)) editor = c;
+  }
+  if (!editor) return false;
+  editor.focus();
+  let r = range;
+  if (!r || !editor.contains(r.commonAncestorContainer)) {
+    r = document.createRange();
+    r.selectNodeContents(editor);
+    r.collapse(false);
+  }
+  r.deleteContents();
+  list.forEach((image) => {
+    const imgEl = document.createElement("img");
+    imgEl.className = "rich-img";
+    imgEl.dataset.imgId = image.id;
+    imgEl.src = imageUrl(image.id);
+    imgEl.alt = "图片";
+    imgEl.draggable = true;
+    r.insertNode(imgEl);
+    r.setStartAfter(imgEl);
+  });
+  const br = document.createElement("br");
   r.insertNode(br);
   r.setStartAfter(br);
   const sel = window.getSelection();
@@ -1627,9 +1707,9 @@ function bindEvents() {
   $("btnPreview").addEventListener("click", previewSummary);
   $("btnPickImage").addEventListener("click", () => $("imageFileInput").click());
   $("imageFileInput").addEventListener("change", (e) => {
-    const f = e.target.files && e.target.files[0];
-    if (f) handleImageUpload(f);
+    const files = e.target.files ? Array.from(e.target.files) : [];
     e.target.value = "";
+    if (files.length) handleImagesUpload(files);
   });
   $("btnOcr").addEventListener("click", () => $("ocrFileInput").click());
   $("ocrFileInput").addEventListener("change", async (e) => {
@@ -1722,9 +1802,9 @@ function bindEvents() {
   $("chatTextInput").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); sendChatMessage(); } });
   $("btnChatImage").addEventListener("click", () => $("chatFileInput").click());
   $("chatFileInput").addEventListener("change", (e) => {
-    const f = e.target.files && e.target.files[0];
+    const files = e.target.files ? Array.from(e.target.files) : [];
     e.target.value = "";
-    if (f) uploadChatImage(f);
+    for (const f of files) uploadChatImage(f);
   });
   $("btnCopyUrl").addEventListener("click", copyUrl);
 

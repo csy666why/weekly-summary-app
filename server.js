@@ -24,6 +24,7 @@ const QRCode = require("qrcode");
 const friends = require("./lib/friends");
 const messages = require("./lib/messages");
 const announcements = require("./lib/announcements");
+const backup = require("./lib/backup");
 
 const PUBLIC_DIR = path.join(__dirname, "public");
 const VERSION = "2.0.0";
@@ -113,7 +114,7 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: "/ws" });
 
-app.use(express.json({ limit: "25mb" }));
+app.use(express.json({ limit: "100mb" }));
 app.use(express.static(PUBLIC_DIR, {
   index: "index.html",
   extensions: ["html"],
@@ -597,22 +598,27 @@ app.post("/api/ai/image", async (req, res) => {
   if (!prompt) return res.status(400).json({ error: "请输入图片描述" });
   const cfg = configLib.loadConfig();
   const ac = cfg.ai || {};
+  const count = Math.min(4, Math.max(1, parseInt(body.count, 10) || 1));
+  const width = body.width || 768;
+  const height = body.height || 512;
+  const summaryId = String(body.summaryId || "");
   try {
-    const { buffer, mime } = await ai.generateImage({
-      prompt,
-      width: body.width || 512,
-      height: body.height || 512,
-      provider: ac.imageProvider || "pollinations",
-      apiKey: ac.imageApiKey || "",
-      model: ac.imageModel || ""
-    });
-    const img = images.saveImage({ data: buffer, mime, width: body.width || 512, height: body.height || 512, name: "AI生成-" + prompt.slice(0, 20) });
-    const summaryId = String(body.summaryId || "");
-    if (summaryId) {
-      const updated = store.addImage(summaryId, img, spaceId);
-      if (updated) broadcast(fullSummaryPayload(updated), null, spaceId);
+    const imagesOut = [];
+    for (let i = 0; i < count; i++) {
+      const { buffer, mime } = await ai.generateImage({
+        prompt, width, height,
+        provider: ac.imageProvider || "pollinations",
+        apiKey: ac.imageApiKey || "",
+        model: ac.imageModel || ""
+      });
+      const img = images.saveImage({ data: buffer, mime, width, height, name: "AI生成-" + prompt.slice(0, 20) });
+      if (summaryId) {
+        const updated = store.addImage(summaryId, img, spaceId);
+        if (updated) broadcast(fullSummaryPayload(updated), null, spaceId);
+      }
+      imagesOut.push({ id: img.id, name: img.name, mime: img.mime, width: img.width, height: img.height, size: img.size, url: "/api/images/" + img.id, uploadedAt: new Date().toISOString() });
     }
-    res.json({ image: { id: img.id, name: img.name, mime: img.mime, width: img.width, height: img.height, size: img.size, url: "/api/images/" + img.id, uploadedAt: new Date().toISOString() } });
+    res.json({ images: imagesOut });
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
@@ -759,6 +765,7 @@ app.get("/api/messages", (req, res) => {
   if (!spaceId) return res.status(403).json({ error: "请先加入一个数据空间" });
   if (!friend || !friends.areFriends(spaceId, friend)) return res.status(403).json({ error: "不是好友" });
   messages.markRead(spaceId, friend);
+  broadcast({ type: "messages-read", friend: spaceId }, null, friend);
   res.json({ messages: messages.list(spaceId, friend) });
 });
 
@@ -775,6 +782,30 @@ app.post("/api/messages", (req, res) => {
   broadcast({ type: "message-new", message: msg }, null, to);
   broadcast({ type: "message-new", message: msg }, null, spaceId);
   res.json({ message: msg });
+});
+
+app.delete("/api/messages/:id", (req, res) => {
+  const spaceId = spaceIdOf(req);
+  const id = String(req.params.id || "");
+  if (!spaceId || !id) return res.status(400).json({ error: "参数错误" });
+  const m = messages.listAll().find((x) => x.id === id);
+  if (!m) return res.status(404).json({ error: "消息不存在" });
+  if (m.from !== spaceId && m.to !== spaceId) return res.status(403).json({ error: "无权删除该消息" });
+  messages.remove(id, spaceId);
+  broadcast({ type: "message-deleted", id }, null, m.from);
+  broadcast({ type: "message-deleted", id }, null, m.to);
+  res.json({ ok: true });
+});
+
+app.post("/api/messages/:id/recall", (req, res) => {
+  const spaceId = spaceIdOf(req);
+  const id = String(req.params.id || "");
+  if (!spaceId || !id) return res.status(400).json({ error: "参数错误" });
+  const updated = messages.recall(id, spaceId);
+  if (!updated) return res.status(404).json({ error: "消息不存在或无权撤回" });
+  broadcast({ type: "message-updated", message: updated }, null, updated.from);
+  broadcast({ type: "message-updated", message: updated }, null, updated.to);
+  res.json({ message: updated });
 });
 
 app.post("/api/messages/read", (req, res) => {
@@ -856,6 +887,35 @@ app.post("/api/announcements", (req, res) => {
   res.json({ announcement: a });
 });
 
+/* ---------- 数据备份 / 导出导入（仅管理员） ---------- */
+app.get("/api/backup/export", (req, res) => {
+  const deviceId = getDeviceId(req);
+  if (!isServerAdmin(deviceId)) return res.status(403).json({ error: "仅管理员可导出备份" });
+  try {
+    const zip = backup.exportZip();
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", "attachment; filename=weekly-os-backup.zip");
+    res.send(zip);
+  } catch (e) { res.status(500).json({ error: "导出失败: " + e.message }); }
+});
+
+app.post("/api/backup/import", (req, res) => {
+  const deviceId = getDeviceId(req);
+  if (!isServerAdmin(deviceId)) return res.status(403).json({ error: "仅管理员可导入备份" });
+  const body = req.body || {};
+  const b64 = String(body.data || "");
+  if (!b64) return res.status(400).json({ error: "缺少备份数据" });
+  try {
+    // 导入前先备份当前数据
+    backup.backupNow();
+    const buf = Buffer.from(b64, "base64");
+    const count = backup.restoreFromZip(buf);
+    // 刷新所有内存缓存
+    store.reload(); spaces.reload(); devices.reload(); friends.reload(); messages.reload(); announcements.reload();
+    res.json({ ok: true, restored: count, note: "已导入，请刷新页面查看" });
+  } catch (e) { res.status(400).json({ error: "导入失败: " + e.message }); }
+});
+
 /* ---------- 404 / 错误 ---------- */
 app.use("/api", (req, res) => res.status(404).json({ error: "接口不存在" }));
 
@@ -893,6 +953,7 @@ function migrate() {
 
 /* ---------- 启动 ---------- */
 migrate();
+backup.backupNow(); // 启动时自动备份
 
 const cfg = configLib.loadConfig();
 const port = process.env.PORT ? parseInt(process.env.PORT, 10) : (cfg.port || 8080);

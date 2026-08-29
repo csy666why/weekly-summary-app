@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="周小结" />
-  <link rel="manifest" href="manifest.json?v=20260831c" />
+  <link rel="manifest" href="manifest.json?v=20260831d" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <meta name="theme-color" content="#04070d" />
@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="styles.css?v=20260831c" />
+<link rel="stylesheet" href="styles.css?v=20260831d" />
 </head>
 <body>
   <div class="bg-grid" aria-hidden="true"></div>
@@ -59,6 +59,7 @@
       <div class="sidebar-head">
         <span class="micro-label mono">ARCHIVE // 周小结档案</span>
         <button class="btn primary block" id="btnNew">＋ 新建周小结</button>
+        <input class="sidebar-search" id="searchInput" placeholder="🔍 搜索小结（标题/内容）…" autocomplete="off" />
       </div>
       <div class="summary-list" id="summaryList"></div>
       <div class="sidebar-foot">
@@ -188,6 +189,15 @@
             <button class="btn ghost block" id="btnManageDevices">🔐 设备授权管理</button>
           </div>
         </div>
+        <div class="settings-group hidden" id="backupGroup">
+          <div class="group-title">数据备份</div>
+          <p class="field-hint">导出全部数据（小结/图片/聊天/公告）为 zip 备份；导入后刷新页面生效。服务启动时自动备份（保留最近 20 份）。</p>
+          <div class="ai-actions">
+            <button class="btn ghost block" id="btnExportBackup">⬇ 导出全部数据</button>
+            <button class="btn ghost block" id="btnImportBackup">⬆ 导入备份</button>
+            <input type="file" id="backupFileInput" accept=".zip,application/zip" hidden />
+          </div>
+        </div>
         <div class="settings-group" id="aiSettingsGroup">
           <div class="group-title">AI 接口（OpenAI 兼容）</div>
           <label class="field"><span>服务商</span>
@@ -268,9 +278,20 @@
         </div>
         <div class="ai-img-gen">
           <input id="aiImgPrompt" placeholder="🎨 描述想生成的图片，如：车间混砂机设备示意图…" autocomplete="off" />
-          <button class="btn accent sm" id="btnAiImg">AI 生图</button>
+          <select id="aiImgSize" title="尺寸">
+            <option value="512x512">方图</option>
+            <option value="768x512" selected>横图</option>
+            <option value="512x768">竖图</option>
+          </select>
+          <select id="aiImgCount" title="数量">
+            <option value="1">1张</option>
+            <option value="2" selected>2张</option>
+            <option value="4">4张</option>
+          </select>
+          <button class="btn accent sm" id="btnAiImg">🎨 AI 生图</button>
           <span class="mono small dim" id="aiImgStatus"></span>
         </div>
+        <div class="ai-img-results hidden" id="aiImgResults"></div>
         <div class="ocr-result hidden" id="ocrResult">
           <div class="ocr-head">
             <span class="micro-label mono">OCR // 文字识别</span>
@@ -287,6 +308,27 @@
       </div>
       <div class="modal-foot">
         <button class="btn ghost" data-close="imageModal">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新手引导 -->
+  <div class="modal-backdrop hidden" id="guideModal">
+    <div class="modal">
+      <div class="modal-head">
+        <span class="micro-label mono">WELCOME // 使用引导</span>
+        <button class="icon-btn" data-close="guideModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="guide-step">① 创建/加入你的空间（空间名 + 密码，数据互相隔离）</div>
+        <div class="guide-step">② 写周小结：新建 → 添加「每日完成情况/清单/文本」块，可插图片、识别文字</div>
+        <div class="guide-step">③ AI 生成：原始记录 → 一键生成更像人写的周小结（文字+图片）</div>
+        <div class="guide-step">④ 导出 Word：右上角 ⬇ 导出，图片自动内嵌</div>
+        <div class="guide-step">⑤ 加好友聊天：💬 消息 → 输入对方空间ID/名称 → 同意后实时聊天</div>
+        <div class="guide-step">⑥ 通知公告：🔔 顶部滚动公告 + 通知面板；管理员可发公告</div>
+        <div class="ai-actions">
+          <button class="btn primary block" id="btnGuideClose">我知道了，开始使用</button>
+        </div>
       </div>
     </div>
   </div>
@@ -343,6 +385,10 @@
           <div class="chat-side-foot mono small dim" id="chatFriendTip">输入对方的「空间名称 + 密码」即可成为好友，互相发消息、分享图片；小结数据仍互相隔离。</div>
         </div>
         <div class="chat-main">
+          <div class="chat-main-head">
+            <button class="btn ghost sm" id="btnChatBack">← 好友</button>
+            <span class="chat-main-title" id="chatMainTitle">聊天</span>
+          </div>
           <div class="chat-conv" id="chatConv">
             <div class="chat-empty" id="chatEmpty">选择左侧好友开始聊天</div>
           </div>
@@ -432,16 +478,16 @@
 
   <div id="toast" aria-live="polite"></div>
 
-  <script defer src="app.js?v=20260831c"></script>
-  <script defer src="mobile-save.js?v=20260831c"></script>
+  <script defer src="app.js?v=20260831d"></script>
+  <script defer src="mobile-save.js?v=20260831d"></script>
     <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
-        navigator.serviceWorker.register("sw.js?v=20260831c").catch(function () {});
+        navigator.serviceWorker.register("sw.js?v=20260831d").catch(function () {});
       });
     }
   </script>
-  <script defer src="blocks.js?v=20260831c"></script>
+  <script defer src="blocks.js?v=20260831d"></script>
 </body>
 </html>
 

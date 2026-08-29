@@ -681,3 +681,32 @@ body.notice-open{--notice-h:34px}
 .ai-img-gen input{flex:1;min-width:160px;background:rgba(4,7,13,.7);border:1px solid rgba(94,200,255,.22);border-radius:8px;color:#e6edf3;font-size:13px;padding:8px;outline:none}
 .ai-img-gen input:focus{border-color:#22d3ee}
 #aiImgStatus{font-size:11px;color:#64748b}
+/* ---------- 消息操作 / 已读 ---------- */
+.chat-msg{position:relative}
+.chat-meta{display:flex;align-items:center;gap:6px;margin-top:4px;justify-content:flex-end}
+.chat-msg.theirs .chat-meta{justify-content:flex-start}
+.chat-read{font-size:10px;color:#34d399}
+.chat-text.recalled{color:#64748b;font-style:italic}
+.chat-actions{display:inline-flex;gap:2px}
+.chat-actions button{background:transparent;border:none;color:#64748b;cursor:pointer;font-size:12px;padding:0 3px;border-radius:4px}
+.chat-actions button:hover{color:#fb7185}
+/* ---------- 周小结搜索 ---------- */
+.sidebar-search{width:100%;margin-top:8px;background:rgba(4,7,13,.7);border:1px solid rgba(94,200,255,.22);border-radius:8px;color:#e6edf3;font-size:13px;padding:7px 10px;outline:none}
+.sidebar-search:focus{border-color:#22d3ee}
+/* ---------- AI 生图 ---------- */
+.ai-img-gen select{background:rgba(4,7,13,.7);border:1px solid rgba(94,200,255,.22);border-radius:8px;color:#e6edf3;font-size:12px;padding:7px 6px;outline:none}
+.ai-img-results{margin-top:8px}
+.ai-img-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.ai-img-card{display:flex;flex-direction:column;gap:6px;align-items:center;border:1px solid rgba(94,200,255,.16);border-radius:10px;padding:8px;background:rgba(34,211,238,.04)}
+.ai-img-card img{max-width:140px;max-height:120px;border-radius:8px}
+/* ---------- 手机聊天全屏 ---------- */
+.chat-main-head{display:none;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid rgba(94,200,255,.14)}
+.chat-main-title{flex:1;font-size:14px;color:#d9e7f5}
+@media(max-width:720px){
+  .chat-modal{width:100vw;height:100vh;max-height:100vh;border-radius:0}
+  .chat-main-head{display:flex}
+  .chat-side{width:100%}
+  .chat-modal.chat-open .chat-side{display:none}
+  .chat-modal:not(.chat-open) .chat-main{display:none}
+}
+.guide-step{padding:8px 4px;font-size:14px;color:#d9e7f5;line-height:1.8;border-bottom:1px dashed rgba(94,200,255,.12)}

@@ -289,6 +289,10 @@ function handleMessage(msg) {
       loadChatFriendsSilent();
       toast("好友申请已通过", "ok");
       break;
+    case "friend-rejected":
+      loadChatFriendsSilent();
+      toast("好友申请被拒绝" + (msg.request && msg.request.reason ? "：" + msg.request.reason : ""), "err");
+      break;
   }
 }
 
@@ -876,11 +880,45 @@ async function openNotify() {
   $("notifyModal").classList.remove("hidden");
   state.notice.badge = 0;
   updateNotifyBadge();
+  const pubArea = $("noticePublishArea");
+  if (pubArea) pubArea.classList.toggle("hidden", !state.auth.serverAdmin);
+  const admBox = $("adminManage");
+  if (admBox) {
+    const canSuper = state.auth.serverAdmin && state.auth.serverAdmin === true && state.auth.owner;
+    admBox.classList.toggle("hidden", !canSuper);
+    if (canSuper) loadAdminManage();
+  }
   try {
     const data = await fetchJSON("/api/announcements");
     state.notice.list = data.announcements || [];
     renderNoticeList();
   } catch (e) { toast("加载公告失败: " + e.message, "err"); }
+}
+async function loadAdminManage() {
+  try {
+    const data = await fetchJSON("/api/admin/spaces");
+    const box = $("adminManageList");
+    if (!box) return;
+    box.innerHTML = "";
+    const adminSpaces = data.spaces.filter((sp) => sp.isAdmin);
+    if (!adminSpaces.length) box.innerHTML = '<div class="notice-empty">还没有协管，任命一个吧</div>';
+    for (const sp of adminSpaces) {
+      const el = document.createElement("div");
+      el.className = "admin-manage-row";
+      el.innerHTML = '<span class="chat-dot ' + (sp.online ? "on" : "off") + '"></span><span class="admin-manage-name">' + escapeHtml(sp.name) + '</span><span class="chat-admin-id mono">ID ' + escapeHtml(sp.code) + '</span><button class="btn ghost sm" data-remove="' + sp.spaceId + '">撤销</button>';
+      el.querySelector("button").addEventListener("click", () => appointAdmin(sp.code, "remove"));
+      box.appendChild(el);
+    }
+  } catch (_) {}
+}
+async function appointAdmin(query, action) {
+  if (!query) return;
+  try {
+    const r = await fetchJSON("/api/admin/appoint", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query, action }) });
+    toast(action === "add" ? "已任命「" + r.space.name + "」为管理员" : "已撤销「" + r.space.name + "」管理员", "ok");
+    $("adminQuery").value = "";
+    loadAdminManage();
+  } catch (e) { toast(e.message, "err"); }
 }
 function renderNoticeList() {
   const box = $("noticeList");
@@ -1046,6 +1084,19 @@ function renderChatFriends() {
       box.appendChild(el);
     }
   }
+  const rejected = state.chat.requests.rejected || [];
+  if (rejected.length) {
+    const sec = document.createElement("div");
+    sec.className = "chat-sec mono small dim";
+    sec.textContent = "被拒绝的申请";
+    box.appendChild(sec);
+    for (const r of rejected) {
+      const el = document.createElement("div");
+      el.className = "chat-friend req";
+      el.innerHTML = '<span class="chat-dot off"></span><span class="chat-friend-name">' + escapeHtml(r.toName) + '</span><span class="chat-friend-code mono">已拒绝</span><span class="chat-friend-reason">' + escapeHtml(r.reason || "未填写原因") + "</span>";
+      box.appendChild(el);
+    }
+  }
   if (state.chat.friends.length) {
     const sec = document.createElement("div");
     sec.className = "chat-sec mono small dim";
@@ -1189,8 +1240,13 @@ async function loadChatFriendsSilent() {
   } catch (_) {}
 }
 async function respondFriend(requestId, accept) {
+  let reason = "";
+  if (!accept) {
+    reason = window.prompt("请输入拒绝理由（对方可见）：", "");
+    if (reason === null) return;
+  }
   try {
-    await fetchJSON("/api/friends/respond", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ requestId, accept }) });
+    await fetchJSON("/api/friends/respond", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ requestId, accept, reason }) });
     toast(accept ? "已同意，成为好友" : "已拒绝该申请", "ok");
     loadChatFriendsSilent();
   } catch (e) { toast("操作失败: " + e.message, "err"); }
@@ -1936,6 +1992,8 @@ function bindEvents() {
   $("btnPhone").addEventListener("click", openPhone);
   $("btnNotify").addEventListener("click", openNotify);
   $("btnNoticePublish").addEventListener("click", publishAnnouncement);
+  $("btnAdminAdd").addEventListener("click", () => appointAdmin($("adminQuery").value.trim(), "add"));
+  $("adminQuery").addEventListener("keydown", (e) => { if (e.key === "Enter") appointAdmin($("adminQuery").value.trim(), "add"); });
   $("btnNoticeClose").addEventListener("click", hideBanner);
   $("btnChat").addEventListener("click", openChat);
   $("chatModal").querySelector('[data-close="chatModal"]').addEventListener("click", closeChat);

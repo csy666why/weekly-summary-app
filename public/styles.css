@@ -665,3 +665,12 @@ body.notice-open{--notice-h:34px}
 .chat-sec{padding:10px 10px 4px;font-size:11px;color:#64748b;letter-spacing:1px}
 .chat-friend.req{flex-wrap:wrap}
 .chat-friend.req .btn{flex:none;font-size:11px;padding:3px 8px}
+.admin-manage{margin-top:12px;border-top:1px solid rgba(94,200,255,.14);padding-top:10px}
+.admin-manage-head{margin-bottom:8px;color:#64748b}
+.admin-manage-add{display:flex;gap:8px;margin-bottom:8px}
+.admin-manage-add input{flex:1;min-width:0;background:rgba(4,7,13,.7);border:1px solid rgba(94,200,255,.22);border-radius:8px;color:#e6edf3;font-size:13px;padding:8px;outline:none}
+.admin-manage-add input:focus{border-color:#22d3ee}
+.admin-manage-list{display:flex;flex-direction:column;gap:6px}
+.admin-manage-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid rgba(94,200,255,.14);border-radius:8px;font-size:13px}
+.admin-manage-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chat-friend-reason{flex-basis:100%;padding-left:17px;font-size:11px;color:#fb7185}

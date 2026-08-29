@@ -89,13 +89,23 @@ function allowNewSpaces() {
 }
 
 /** 服务器管理员 = 第一个空间的创建者 */
-function isServerAdmin(deviceId) {
+function isSuperAdmin(deviceId) {
   if (!deviceId) return false;
   const sp = spaces.first();
   if (sp && sp.ownerDeviceId && sp.ownerDeviceId === deviceId) return true;
   const cfg = configLib.loadConfig();
   const list = (cfg && cfg.access && Array.isArray(cfg.access.adminDeviceIds)) ? cfg.access.adminDeviceIds : [];
   return list.indexOf(deviceId) >= 0;
+}
+function isServerAdmin(deviceId) {
+  if (isSuperAdmin(deviceId)) return true;
+  if (!deviceId) return false;
+  const d = devices.find(deviceId);
+  if (d && d.spaceId) {
+    const sp = spaces.findById(d.spaceId);
+    if (sp && sp.isAdmin && sp.ownerDeviceId === deviceId) return true;
+  }
+  return false;
 }
 
 /* ---------- App ---------- */
@@ -645,7 +655,11 @@ app.get("/api/friends", (req, res) => {
     const sp = spaces.findById(r.to);
     return { id: r.id, to: r.to, toName: sp ? sp.name : "已删除的空间", toCode: sp ? (sp.code || "") : "", createdAt: r.createdAt };
   });
-  res.json({ friends: list, requests: { incoming, outgoing }, unread: messages.unreadCount(spaceId) });
+  const rejected = reqs.rejected.map((r) => {
+    const sp = spaces.findById(r.to);
+    return { id: r.id, to: r.to, toName: sp ? sp.name : "已删除的空间", toCode: sp ? (sp.code || "") : "", reason: r.reason || "", createdAt: r.createdAt };
+  });
+  res.json({ friends: list, requests: { incoming, outgoing, rejected }, unread: messages.unreadCount(spaceId) });
 });
 
 app.post("/api/friends", (req, res) => {
@@ -682,13 +696,16 @@ app.post("/api/friends/respond", (req, res) => {
   const id = String(body.requestId || "");
   const accept = body.accept === true || body.accept === "true";
   if (!id) return res.status(400).json({ error: "缺少申请ID" });
-  const r = friends.respondRequest(id, spaceId, accept);
+  const reason = String(body.reason || "");
+  const r = friends.respondRequest(id, spaceId, accept, reason);
   if (!r) return res.status(404).json({ error: "申请不存在或已处理" });
   if (accept) {
     broadcastFriendStatus(r.from);
     broadcastFriendStatus(spaceId);
     broadcast({ type: "friend-accepted", request: r }, null, r.from);
     broadcast({ type: "friend-accepted", request: r }, null, spaceId);
+  } else {
+    broadcast({ type: "friend-rejected", request: r }, null, r.from);
   }
   res.json({ ok: true, status: r.status });
 });
@@ -762,11 +779,28 @@ app.get("/api/admin/spaces", (req, res) => {
       name: sp.name,
       ownerName: owner ? (owner.name || "") : "",
       online: online.has(sp.id),
+      isAdmin: !!sp.isAdmin,
+      canManage: isSuperAdmin(deviceId),
       createdAt: sp.createdAt || ""
     };
   });
   const onlineCount = list.filter((x) => x.online).length;
   res.json({ spaces: list, total: list.length, online: onlineCount });
+});
+
+/* 任命/撤销协管（仅超级管理员） */
+app.post("/api/admin/appoint", (req, res) => {
+  const deviceId = getDeviceId(req);
+  if (!isSuperAdmin(deviceId)) return res.status(403).json({ error: "仅超级管理员可任命管理员" });
+  const body = req.body || {};
+  const query = String(body.query || "").trim();
+  const action = body.action === "remove" ? "remove" : "add";
+  if (!query) return res.status(400).json({ error: "请输入空间ID或名称" });
+  const sp = spaces.findByCode(query) || spaces.findById(query) || spaces.findByName(query);
+  if (!sp) return res.status(404).json({ error: "找不到该空间" });
+  if (sp.id === (spaces.first() || {}).id) return res.status(400).json({ error: "不能操作主管理员空间" });
+  spaces.setAdmin(sp.id, action === "add");
+  res.json({ ok: true, space: { id: sp.id, name: sp.name, code: sp.code || "", isAdmin: action === "add" } });
 });
 
 /* ---------- 公告 / 通知 ---------- */
@@ -777,6 +811,8 @@ app.get("/api/announcements", (req, res) => {
 });
 
 app.post("/api/announcements", (req, res) => {
+  const deviceId = getDeviceId(req);
+  if (!isServerAdmin(deviceId)) return res.status(403).json({ error: "仅管理员可发布公告" });
   const spaceId = spaceIdOf(req);
   if (!spaceId) return res.status(403).json({ error: "请先加入一个数据空间" });
   const content = String((req.body || {}).content || "").trim();

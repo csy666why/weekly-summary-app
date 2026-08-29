@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="周小结" />
-  <link rel="manifest" href="manifest.json?v=20260831" />
+  <link rel="manifest" href="manifest.json?v=20260831b" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <meta name="theme-color" content="#04070d" />
@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="styles.css?v=20260831" />
+<link rel="stylesheet" href="styles.css?v=20260831b" />
 </head>
 <body>
   <div class="bg-grid" aria-hidden="true"></div>
@@ -284,9 +284,17 @@
         <button class="icon-btn" data-close="notifyModal">✕</button>
       </div>
       <div class="modal-body">
-        <div class="notice-publish">
+        <div class="notice-publish hidden" id="noticePublishArea">
           <textarea id="noticeInput" rows="2" placeholder="发布一条公告（所有人顶部滚动显示 1 分钟，通知面板长期显示）…"></textarea>
           <button class="btn accent sm" id="btnNoticePublish">📢 发布公告</button>
+        </div>
+        <div class="admin-manage hidden" id="adminManage">
+          <div class="admin-manage-head mono small dim">管理员管理（超级管理员）</div>
+          <div class="admin-manage-add">
+            <input id="adminQuery" placeholder="输入空间ID或名称，任命为管理员" autocomplete="off" />
+            <button class="btn accent sm" id="btnAdminAdd">任命</button>
+          </div>
+          <div class="admin-manage-list" id="adminManageList"></div>
         </div>
         <div class="notice-list" id="noticeList"></div>
       </div>
@@ -409,16 +417,16 @@
 
   <div id="toast" aria-live="polite"></div>
 
-  <script defer src="app.js?v=20260831"></script>
-  <script defer src="mobile-save.js?v=20260831"></script>
+  <script defer src="app.js?v=20260831b"></script>
+  <script defer src="mobile-save.js?v=20260831b"></script>
     <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
-        navigator.serviceWorker.register("sw.js?v=20260831").catch(function () {});
+        navigator.serviceWorker.register("sw.js?v=20260831b").catch(function () {});
       });
     }
   </script>
-  <script defer src="blocks.js?v=20260831"></script>
+  <script defer src="blocks.js?v=20260831b"></script>
 </body>
 </html>
 

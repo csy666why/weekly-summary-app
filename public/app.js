@@ -28,7 +28,8 @@ const state = {
   devices: [],
   imageInsertTarget: null,
   richSelection: null,
-  chat: { friends: [], activeFriend: null, unread: {} }
+  chat: { friends: [], activeFriend: null, unread: {}, requests: { incoming: [], outgoing: [] }, adminTimer: null },
+  notice: { list: [], queue: [], current: null, bannerTimer: null, badge: 0 }
 };
 
 const PROVIDERS = {
@@ -243,6 +244,7 @@ function handleMessage(msg) {
       if (msg.summaries) { state.summaries = msg.summaries; renderList(); }
       renderDevices();
       loadChatFriendsSilent();
+      loadAnnouncements();
       if (state.current) refreshCurrent();
       break;
     case "clients":
@@ -275,6 +277,17 @@ function handleMessage(msg) {
       break;
     case "friend-status":
       updateFriendOnline(msg.spaceId, !!msg.online);
+      break;
+    case "announcement-new":
+      onAnnouncement(msg.announcement);
+      break;
+    case "friend-request":
+      loadChatFriendsSilent();
+      toast("收到新的好友申请", "ok");
+      break;
+    case "friend-accepted":
+      loadChatFriendsSilent();
+      toast("好友申请已通过", "ok");
       break;
   }
 }
@@ -854,6 +867,90 @@ async function exportWord() {
   toast("Word 文档已生成并开始下载", "ok");
 }
 
+/* ---------- 通知 / 公告 ---------- */
+function updateNotifyBadge() {
+  const badge = $("notifyBadge");
+  if (badge) { badge.textContent = state.notice.badge; badge.classList.toggle("hidden", state.notice.badge === 0); }
+}
+async function openNotify() {
+  $("notifyModal").classList.remove("hidden");
+  state.notice.badge = 0;
+  updateNotifyBadge();
+  try {
+    const data = await fetchJSON("/api/announcements");
+    state.notice.list = data.announcements || [];
+    renderNoticeList();
+  } catch (e) { toast("加载公告失败: " + e.message, "err"); }
+}
+function renderNoticeList() {
+  const box = $("noticeList");
+  box.innerHTML = "";
+  if (!state.notice.list.length) { box.innerHTML = '<div class="notice-empty">暂无公告</div>'; return; }
+  const list = state.notice.list.slice().reverse();
+  for (const an of list) {
+    const el = document.createElement("div");
+    el.className = "notice-item";
+    const time = an.createdAt ? fmtShort(an.createdAt) + " " + String(an.createdAt).slice(11, 16) : "";
+    el.innerHTML = '<div class="notice-item-head"><span class="notice-item-from">' + escapeHtml(an.fromName || "匿名") + "</span><span class=\"notice-item-time mono\">" + time + "</span></div>" +
+      '<div class="notice-item-content">' + escapeHtml(an.content).replace(/\n/g, "<br>") + "</div>";
+    box.appendChild(el);
+  }
+}
+async function publishAnnouncement() {
+  const input = $("noticeInput");
+  const content = input.value.trim();
+  if (!content) { toast("请输入公告内容", "err"); return; }
+  try {
+    await fetchJSON("/api/announcements", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content }) });
+    input.value = "";
+    toast("公告已发布", "ok");
+    openNotify();
+  } catch (e) { toast("发布失败: " + e.message, "err"); }
+}
+function onAnnouncement(an) {
+  if (!an) return;
+  state.notice.list.push(an);
+  state.notice.badge++;
+  updateNotifyBadge();
+  if (!$("notifyModal").classList.contains("hidden")) renderNoticeList();
+  enqueueBanner(an);
+}
+function enqueueBanner(an) {
+  state.notice.queue.push(an);
+  if (!state.notice.current) showNextBanner();
+}
+function showNextBanner() {
+  const an = state.notice.queue.shift();
+  state.notice.current = an;
+  if (!an) { $("noticeBanner").classList.add("hidden"); document.body.classList.remove("notice-open"); return; }
+  const text = $("noticeText");
+  text.textContent = (an.fromName || "匿名") + "：" + an.content;
+  text.style.animation = "none";
+  void text.offsetWidth;
+  text.style.animation = "";
+  $("noticeBanner").classList.remove("hidden");
+  document.body.classList.add("notice-open");
+  state.notice.bannerTimer = setTimeout(showNextBanner, 60000);
+}
+function hideBanner() {
+  clearTimeout(state.notice.bannerTimer);
+  state.notice.current = null;
+  state.notice.queue = [];
+  $("noticeBanner").classList.add("hidden");
+  document.body.classList.remove("notice-open");
+}
+async function loadAnnouncements() {
+  try {
+    const data = await fetchJSON("/api/announcements");
+    state.notice.list = data.announcements || [];
+    if (!state.notice.current && state.notice.queue.length === 0) {
+      const recent = state.notice.list.slice(-2);
+      for (const an of recent) state.notice.queue.push(an);
+      if (recent.length) showNextBanner();
+    }
+  } catch (_) {}
+}
+
 /* ---------- 空间聊天（好友 / 消息） ---------- */
 function updateChatBadge() {
   const total = Object.values(state.chat.unread || {}).reduce((a2, b2) => a2 + b2, 0);
@@ -866,6 +963,7 @@ async function openChat() {
   try {
     const data = await fetchJSON("/api/friends");
     state.chat.friends = data.friends || [];
+    state.chat.requests = data.requests || { incoming: [], outgoing: [] };
     renderChatFriends();
     if (!state.chat.activeFriend && state.chat.friends.length) openConversation(state.chat.friends[0].spaceId);
   } catch (e) { toast("加载好友失败: " + e.message, "err"); }
@@ -919,7 +1017,42 @@ function closeChat() {
 function renderChatFriends() {
   const box = $("chatFriends");
   box.innerHTML = "";
-  if (!state.chat.friends.length) {
+  const incoming = state.chat.requests.incoming || [];
+  const outgoing = state.chat.requests.outgoing || [];
+  if (incoming.length) {
+    const sec = document.createElement("div");
+    sec.className = "chat-sec mono small dim";
+    sec.textContent = "新好友申请";
+    box.appendChild(sec);
+    for (const r of incoming) {
+      const el = document.createElement("div");
+      el.className = "chat-friend req";
+      el.innerHTML = '<span class="chat-dot off"></span><span class="chat-friend-name">' + escapeHtml(r.fromName) + '</span><span class="chat-friend-code mono">ID ' + escapeHtml(r.fromCode || "") + '</span>' +
+        '<button class="btn ghost sm" data-acc="1">同意</button><button class="btn ghost sm" data-acc="0">拒绝</button>';
+      el.querySelector('[data-acc="1"]').addEventListener("click", () => respondFriend(r.id, true));
+      el.querySelector('[data-acc="0"]').addEventListener("click", () => respondFriend(r.id, false));
+      box.appendChild(el);
+    }
+  }
+  if (outgoing.length) {
+    const sec = document.createElement("div");
+    sec.className = "chat-sec mono small dim";
+    sec.textContent = "已发送申请";
+    box.appendChild(sec);
+    for (const r of outgoing) {
+      const el = document.createElement("div");
+      el.className = "chat-friend req";
+      el.innerHTML = '<span class="chat-dot off"></span><span class="chat-friend-name">' + escapeHtml(r.toName) + '</span><span class="chat-friend-code mono">待验证</span>';
+      box.appendChild(el);
+    }
+  }
+  if (state.chat.friends.length) {
+    const sec = document.createElement("div");
+    sec.className = "chat-sec mono small dim";
+    sec.textContent = "我的好友";
+    box.appendChild(sec);
+  }
+  if (!state.chat.friends.length && !incoming.length && !outgoing.length) {
     box.innerHTML = '<div class="chat-friend-empty">还没有好友<br/>点上方「添加好友」</div>';
     return;
   }
@@ -1051,8 +1184,16 @@ async function loadChatFriendsSilent() {
   try {
     const data = await fetchJSON("/api/friends");
     state.chat.friends = data.friends || [];
+    state.chat.requests = data.requests || { incoming: [], outgoing: [] };
     renderChatFriends();
   } catch (_) {}
+}
+async function respondFriend(requestId, accept) {
+  try {
+    await fetchJSON("/api/friends/respond", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ requestId, accept }) });
+    toast(accept ? "已同意，成为好友" : "已拒绝该申请", "ok");
+    loadChatFriendsSilent();
+  } catch (e) { toast("操作失败: " + e.message, "err"); }
 }
 async function addFriendSubmit() {
   const query = $("friendQuery").value.trim();
@@ -1063,10 +1204,14 @@ async function addFriendSubmit() {
     const r = await fetchJSON("/api/friends", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query }) });
     $("friendModal").classList.add("hidden");
     $("friendQuery").value = "";
-    toast("已添加好友「" + r.friend.name + "」", "ok");
-    state.chat.friends.push(r.friend);
-    renderChatFriends();
-    openConversation(r.friend.spaceId);
+    if (r.pending) {
+      toast("好友申请已发送，等待对方同意", "ok");
+    } else {
+      toast("已添加好友「" + r.friend.name + "」", "ok");
+      state.chat.friends.push(r.friend);
+      openConversation(r.friend.spaceId);
+    }
+    loadChatFriendsSilent();
   } catch (e) {
     errEl.textContent = e.message;
   }
@@ -1789,6 +1934,9 @@ function bindEvents() {
   $("btnDevices").addEventListener("click", openDeviceModal);
 
   $("btnPhone").addEventListener("click", openPhone);
+  $("btnNotify").addEventListener("click", openNotify);
+  $("btnNoticePublish").addEventListener("click", publishAnnouncement);
+  $("btnNoticeClose").addEventListener("click", hideBanner);
   $("btnChat").addEventListener("click", openChat);
   $("chatModal").querySelector('[data-close="chatModal"]').addEventListener("click", closeChat);
   $("btnAddFriend").addEventListener("click", () => { $("friendErr").textContent = ""; $("friendModal").classList.remove("hidden"); });

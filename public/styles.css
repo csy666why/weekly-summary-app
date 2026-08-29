@@ -23,6 +23,7 @@
   --mono: 'Rajdhani', 'Cascadia Mono', Consolas, monospace;
   --display: 'Orbitron', 'Rajdhani', sans-serif;
   --body: 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', 'Segoe UI', sans-serif;
+  --notice-h: 0px;
   --radius: 12px;
   --shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
   --topbar-h: 56px;
@@ -71,7 +72,7 @@ body {
 
 /* ---------- 顶栏 ---------- */
 .topbar {
-  position: fixed; top: 0; left: 0; right: 0; height: var(--topbar-h); z-index: 50;
+  position: fixed; top: var(--notice-h); left: 0; right: 0; height: var(--topbar-h); z-index: 50;
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 18px;
   background: linear-gradient(180deg, rgba(6, 11, 20, 0.92), rgba(6, 11, 20, 0.72));
@@ -118,7 +119,7 @@ body {
 
 /* ---------- 布局 ---------- */
 .layout {
-  position: fixed; top: var(--topbar-h); bottom: 0; left: 0; right: 0;
+  position: fixed; top: calc(var(--topbar-h) + var(--notice-h)); bottom: 0; left: 0; right: 0;
   display: grid; grid-template-columns: 268px minmax(0, 1fr) 372px;
   gap: 0;
 }
@@ -366,19 +367,19 @@ body {
 @media (max-width: 1024px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
   .sidebar {
-    position: fixed; top: var(--topbar-h); bottom: 0; left: 0; width: 288px; z-index: 45;
+    position: fixed; top: calc(var(--topbar-h) + var(--notice-h)); bottom: 0; left: 0; width: 288px; z-index: 45;
     transform: translateX(-105%); transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: 20px 0 50px rgba(0, 0, 0, 0.5);
   }
   body.drawer-open .sidebar { transform: translateX(0); }
   .ai-panel {
-    position: fixed; top: var(--topbar-h); bottom: 0; right: 0; width: min(430px, 94vw); z-index: 45;
+    position: fixed; top: calc(var(--topbar-h) + var(--notice-h)); bottom: 0; right: 0; width: min(430px, 94vw); z-index: 45;
     transform: translateX(105%); transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: -20px 0 50px rgba(0, 0, 0, 0.5);
   }
   body.ai-open .ai-panel { transform: translateX(0); }
   .scrim {
-    position: fixed; top: var(--topbar-h); left: 0; right: 0; bottom: 0; z-index: 34;
+    position: fixed; top: calc(var(--topbar-h) + var(--notice-h)); left: 0; right: 0; bottom: 0; z-index: 34;
     background: rgba(2, 5, 10, 0.55); opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
   }
   body.drawer-open .scrim, body.ai-open .scrim { opacity: 1; pointer-events: auto; }
@@ -642,3 +643,25 @@ body {
 .chat-admin-status{font-size:11px;flex:none}
 .chat-admin-status.on{color:#34d399}
 .chat-admin-status.off{color:#64748b}
+/* ---------- 公告 / 通知 ---------- */
+body.notice-open{--notice-h:34px}
+.notice-banner{position:fixed;top:0;left:0;right:0;height:var(--notice-h);z-index:60;background:linear-gradient(90deg,rgba(34,211,238,.16),rgba(251,191,36,.12));border-bottom:1px solid rgba(94,200,255,.35);display:flex;align-items:center;padding:0 42px 0 14px;overflow:hidden}
+.notice-inner{flex:1;overflow:hidden;white-space:nowrap}
+.notice-text{display:inline-block;padding-left:100%;animation:notice-scroll 20s linear infinite;font-size:13px;color:#e2e8f0}
+@keyframes notice-scroll{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+.notice-close{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:#94a3b8;cursor:pointer;font-size:14px;z-index:2}
+.notice-close:hover{color:#fff}
+.notice-publish{display:flex;gap:8px;margin-bottom:12px;align-items:flex-end}
+.notice-publish textarea{flex:1;background:rgba(4,7,13,.7);border:1px solid rgba(94,200,255,.22);border-radius:8px;color:#e6edf3;font-size:13px;padding:8px;resize:vertical;font-family:inherit}
+.notice-publish textarea:focus{border-color:#22d3ee;outline:none}
+.notice-list{max-height:52vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.notice-empty{color:#64748b;text-align:center;padding:30px;font-size:13px}
+.notice-item{border:1px solid rgba(94,200,255,.16);border-radius:10px;padding:10px 12px;background:rgba(34,211,238,.04)}
+.notice-item-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px}
+.notice-item-from{color:#22d3ee;font-size:13px;font-weight:600}
+.notice-item-time{font-size:10px;color:#64748b}
+.notice-item-content{font-size:13px;color:#d9e7f5;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+/* ---------- 聊天好友申请 ---------- */
+.chat-sec{padding:10px 10px 4px;font-size:11px;color:#64748b;letter-spacing:1px}
+.chat-friend.req{flex-wrap:wrap}
+.chat-friend.req .btn{flex:none;font-size:11px;padding:3px 8px}

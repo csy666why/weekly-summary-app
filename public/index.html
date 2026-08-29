@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="周小结" />
-  <link rel="manifest" href="manifest.json?v=20260830g" />
+  <link rel="manifest" href="manifest.json?v=20260831" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <meta name="theme-color" content="#04070d" />
@@ -16,12 +16,18 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="styles.css?v=20260830g" />
+<link rel="stylesheet" href="styles.css?v=20260831" />
 </head>
 <body>
   <div class="bg-grid" aria-hidden="true"></div>
   <div class="bg-glow" aria-hidden="true"></div>
   <div class="bg-scan" aria-hidden="true"></div>
+
+  <!-- 滚动公告条 -->
+  <div class="notice-banner hidden" id="noticeBanner">
+    <div class="notice-inner"><span class="notice-icon">📢</span><span class="notice-text" id="noticeText"></span></div>
+    <button class="notice-close" id="btnNoticeClose" title="关闭">✕</button>
+  </div>
 
   <!-- 顶栏 -->
   <header class="topbar">
@@ -41,6 +47,7 @@
       <div class="space-chip hidden" id="spaceChip" title="当前数据空间"><span class="dot"></span><span id="spaceName">—</span><button class="icon-btn sm" id="btnSwitchSpace" title="切换空间">⇄</button></div>
       <button class="btn ghost sm" id="btnDevices">🔐 设备<span class="badge hidden" id="pendingBadge">0</span></button>
       <button class="btn ghost sm" id="btnPhone">⌗ 手机连接</button>
+      <button class="btn ghost sm" id="btnNotify">🔔 通知<span class="badge hidden" id="notifyBadge">0</span></button>
       <button class="btn ghost sm" id="btnChat">💬 消息<span class="badge hidden" id="chatBadge">0</span></button>
       <button class="btn ghost sm" id="btnSettings">⚙ 设置</button>
     </div>
@@ -269,6 +276,26 @@
     </div>
   </div>
 
+  <!-- 通知弹窗 -->
+  <div class="modal-backdrop hidden" id="notifyModal">
+    <div class="modal">
+      <div class="modal-head">
+        <span class="micro-label mono">NOTICE // 通知公告</span>
+        <button class="icon-btn" data-close="notifyModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="notice-publish">
+          <textarea id="noticeInput" rows="2" placeholder="发布一条公告（所有人顶部滚动显示 1 分钟，通知面板长期显示）…"></textarea>
+          <button class="btn accent sm" id="btnNoticePublish">📢 发布公告</button>
+        </div>
+        <div class="notice-list" id="noticeList"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn ghost" data-close="notifyModal">关闭</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 消息弹窗 -->
   <div class="modal-backdrop hidden" id="chatModal">
     <div class="modal chat-modal">
@@ -382,16 +409,16 @@
 
   <div id="toast" aria-live="polite"></div>
 
-  <script defer src="app.js?v=20260830g"></script>
-  <script defer src="mobile-save.js?v=20260830g"></script>
+  <script defer src="app.js?v=20260831"></script>
+  <script defer src="mobile-save.js?v=20260831"></script>
     <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
-        navigator.serviceWorker.register("sw.js?v=20260830g").catch(function () {});
+        navigator.serviceWorker.register("sw.js?v=20260831").catch(function () {});
       });
     }
   </script>
-  <script defer src="blocks.js?v=20260830g"></script>
+  <script defer src="blocks.js?v=20260831"></script>
 </body>
 </html>
 

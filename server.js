@@ -805,6 +805,7 @@ app.post("/api/messages/:id/recall", (req, res) => {
   if (!spaceId || !id) return res.status(400).json({ error: "参数错误" });
   const updated = messages.recall(id, spaceId);
   if (!updated) return res.status(404).json({ error: "消息不存在或无权撤回" });
+  if (updated.tooOld) return res.status(400).json({ error: "超过2分钟，无法撤回" });
   broadcast({ type: "message-updated", message: updated }, null, updated.from);
   broadcast({ type: "message-updated", message: updated }, null, updated.to);
   res.json({ message: updated });

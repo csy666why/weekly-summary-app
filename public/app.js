@@ -1231,6 +1231,7 @@ function closeChatWindow() {
 /* ---------- 表情包 ---------- */
 let emojiTab = "classic";
 function toggleEmojiPanel() {
+  if (!state.chat.activeFriend) { toast("请先选择好友开始聊天，再使用表情", "err"); return; }
   const ep = $("chatEmojiPanel");
   ep.classList.toggle("hidden");
   if (!ep.classList.contains("hidden")) renderEmojiPanel(emojiTab);
@@ -1383,8 +1384,9 @@ function appendChatMessage(m, scroll) {
     body = '<div class="chat-text">' + escapeHtml(m.content).replace(/\n/g, "<br>") + "</div>";
   }
   const readMark = mine && m.read ? '<span class="chat-read">已读</span>' : "";
+  const canRecall = mine && !m.recalled && m.createdAt && (Date.now() - new Date(m.createdAt).getTime()) <= 120000;
   const actions = mine && !m.recalled
-    ? '<span class="chat-actions"><button data-act="recall" title="撤回">↩</button><button data-act="del" title="删除">✕</button></span>'
+    ? '<span class="chat-actions">' + (canRecall ? '<button data-act="recall" title="2分钟内可撤回">↩</button>' : "") + '<button data-act="del" title="删除">✕</button></span>'
     : "";
   el.innerHTML = body + '<div class="chat-meta">' + readMark + '<span class="chat-time">' + time + "</span>" + actions + "</div>";
   const chatImg = el.querySelector(".chat-img img");

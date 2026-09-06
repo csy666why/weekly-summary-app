@@ -720,6 +720,7 @@ function collectImageTokens(text) {
   return m ? Array.from(new Set(m)) : [];
 }
 
+let aiExtraInput = "";
 async function generateAI() {
   if (state.aiStreaming) return;
   if (!state.current) { toast("请先选择或新建一份周小结", "err"); return; }
@@ -747,9 +748,10 @@ async function generateAI() {
     const res = await fetch("/api/ai/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Device-Id": state.deviceId },
-      body: JSON.stringify({ mode, notes, sectionsText, target, extra: "" }),
+      body: JSON.stringify({ mode, notes, sectionsText, target, extra: (aiExtraInput || "") }),
       signal: ctrl.signal
     });
+    aiExtraInput = "";
     if (!res.ok) {
       let data = null;
       try { data = await res.json(); } catch (_) {}
@@ -1809,14 +1811,20 @@ function importToNotes() {
     const marks = importImages.map((im) => "{{img:" + im.id + "}}").join(" ");
     text = text ? text + "\n\n现场照片/文档配图：" + marks : "现场照片/文档配图：" + marks;
   }
+  // 用户填写的 AI 需求
+  const extra = $("importExtra") ? $("importExtra").value.trim() : "";
+  aiExtraInput = extra;
   state.current.notes = text;
   $("notesInput").value = text;
   state.edited.notes = true;
   markDirty();
   saveCurrent().catch(() => {});
+  // 切到「生成」模式并展开 AI 面板
+  try { $("modeSelect").value = "generate"; $("targetSelect").value = "__smart__"; } catch (_) {}
+  document.body.classList.remove("ai-collapsed");
   $("importModal").classList.add("hidden");
-  toast("已填入原始记录，正在生成小结…", "ok");
-  setTimeout(() => { try { generateAI(); } catch (_) {} }, 300);
+  toast(extra ? "已按你的需求开始生成小结…" : "正在生成小结（上周总结/收获体会/下周期望）…", "ok");
+  setTimeout(() => { try { generateAI(); } catch (_) {} }, 400);
 }
 
 /* ---------- 图片 ---------- */

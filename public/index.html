@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="周小结" />
-  <link rel="manifest" href="manifest.json?v=20260906c" />
+  <link rel="manifest" href="manifest.json?v=20260906d" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <meta name="theme-color" content="#04070d" />
@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="styles.css?v=20260906c" />
+<link rel="stylesheet" href="styles.css?v=20260906d" />
 </head>
 <body>
   <div class="bg-grid" aria-hidden="true"></div>
@@ -274,12 +274,16 @@
           <span id="importFileInfo" class="mono small dim"></span>
           <span id="importWarning" class="import-warning"></span>
         </div>
-        <textarea id="importText" rows="10" spellcheck="false" placeholder="文档提取出的文字会显示在这里，可修改…"></textarea>
+        <textarea id="importText" rows="8" spellcheck="false" placeholder="文档提取出的文字会显示在这里，可修改…"></textarea>
         <div class="import-images" id="importImages"></div>
-        <div class="ai-actions">
-          <button class="btn primary block" id="btnImportToNotes">↓ 填入原始记录并生成小结</button>
+        <div class="import-extra">
+          <div class="micro-label mono" style="margin-bottom:6px">AI 需求（告诉它你想怎么写）</div>
+          <textarea id="importExtra" rows="2" spellcheck="false" placeholder="可选：如「以车间实习新员工视角，重点写设备/工艺学习，语气真实接地气，篇幅适中」…"></textarea>
         </div>
-        <p class="field-hint">填入后文字进 AI 面板的「原始记录」，点「AI 生成」生成周小结；文档中的图片会存入图片库并随小结显示。</p>
+        <div class="ai-actions">
+          <button class="btn primary block" id="btnImportToNotes">⚡ 开始生成小结（三板块）</button>
+        </div>
+        <p class="field-hint">将自动生成【上周工作总结】【收获体会】【下周期望】三个板块，文档图片会一并放入小结。</p>
       </div>
     </div>
   </div>
@@ -526,16 +530,16 @@
 
   <div id="toast" aria-live="polite"></div>
 
-  <script defer src="app.js?v=20260906c"></script>
-  <script defer src="mobile-save.js?v=20260906c"></script>
+  <script defer src="app.js?v=20260906d"></script>
+  <script defer src="mobile-save.js?v=20260906d"></script>
     <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
-        navigator.serviceWorker.register("sw.js?v=20260906c").catch(function () {});
+        navigator.serviceWorker.register("sw.js?v=20260906d").catch(function () {});
       });
     }
   </script>
-  <script defer src="blocks.js?v=20260906c"></script>
+  <script defer src="blocks.js?v=20260906d"></script>
 </body>
 </html>
 

@@ -2350,7 +2350,6 @@ function bindEvents() {
   $("btnDelete").addEventListener("click", deleteSummary);
   $("btnExport").addEventListener("click", exportWord);
   $("btnImages").addEventListener("click", () => openImageModal(false, null));
-  $("btnImportDoc").addEventListener("click", () => $("importFileInput").click());
   $("importFileInput").addEventListener("change", (e) => {
     const f = e.target.files && e.target.files[0];
     e.target.value = "";

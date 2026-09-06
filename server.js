@@ -26,6 +26,7 @@ const messages = require("./lib/messages");
 const announcements = require("./lib/announcements");
 const backup = require("./lib/backup");
 const stickers = require("./lib/stickers");
+const docparser = require("./lib/docparser");
 
 const PUBLIC_DIR = path.join(__dirname, "public");
 const VERSION = "2.0.0";
@@ -964,6 +965,35 @@ app.post("/api/stickers/remove", (req, res) => {
   if (!spaceId || !id) return res.status(400).json({ error: "参数错误" });
   stickers.remove(spaceId, id);
   res.json({ ok: true });
+});
+
+/* ---------- 导入文档生成小结 ---------- */
+app.post("/api/import-doc", async (req, res) => {
+  const spaceId = spaceIdOf(req);
+  if (!spaceId) return res.status(403).json({ error: "请先加入一个数据空间" });
+  const body = req.body || {};
+  const dataUrl = String(body.data || "");
+  const filename = String(body.name || "document");
+  const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!m) return res.status(400).json({ error: "文件数据格式错误" });
+  const summaryId = String(body.summaryId || "");
+  try {
+    const buf = Buffer.from(m[2], "base64");
+    if (buf.length < 20) return res.status(400).json({ error: "文件内容为空" });
+    const result = await docparser.parseDocument(buf, filename);
+    const savedImages = [];
+    for (const img of (result.images || [])) {
+      try {
+        const saved = images.saveImage({ data: img.data, mime: img.mime, width: 0, height: 0, name: String(img.name || "文档图片").slice(0, 60) });
+        if (summaryId) {
+          const updated = store.addImage(summaryId, saved, spaceId);
+          if (updated) broadcast(fullSummaryPayload(updated), null, spaceId);
+        }
+        savedImages.push({ id: saved.id, name: saved.name, url: "/api/images/" + saved.id });
+      } catch (e) { console.error("[import-doc] 图片保存失败:", img.name, e.message); }
+    }
+    res.json({ text: result.text || "", images: savedImages, warning: result.warning || null, name: filename, textLen: (result.text || "").length, imageCount: savedImages.length });
+  } catch (e) { res.status(400).json({ error: "导入失败: " + e.message }); }
 });
 
 /* ---------- 404 / 错误 ---------- */

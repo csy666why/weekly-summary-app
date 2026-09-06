@@ -12,7 +12,9 @@
   "dependencies": {
     "docx": "^9.0.0",
     "express": "^4.21.2",
+    "pdf-parse": "^2.4.5",
     "qrcode": "^1.5.4",
+    "word-extractor": "^1.0.4",
     "ws": "^8.18.0"
   }
 }

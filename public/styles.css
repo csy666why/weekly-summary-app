@@ -744,4 +744,11 @@ body.notice-open{--notice-h:34px}
 .emoji-add input{flex:1;min-width:0;background:rgba(4,7,13,.7);border:1px solid rgba(94,200,255,.22);border-radius:8px;color:#e6edf3;font-size:12px;padding:6px;outline:none}
 .emoji-add input:focus{border-color:#22d3ee}
 .emoji-empty{color:#64748b;font-size:12px;text-align:center;padding:16px}
-.chat-emoji-img{width:48px;height:48px;object-fit:contain;vertical-align:middle}
+.chat-emoji-img{width:48px;height:48px;object-fit:contain;vertical-align:middle}/* ---------- 导入文档 ---------- */
+.import-head{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.import-warning{color:#fbbf24;font-size:12px}
+#importText{width:100%;min-height:160px;background:rgba(4,7,13,.7);border:1px solid rgba(94,200,255,.22);border-radius:8px;color:#e6edf3;font-size:13px;padding:8px;font-family:inherit;resize:vertical}
+#importText:focus{border-color:#22d3ee;outline:none}
+.import-sec{margin:10px 0 6px}
+.import-img-grid{display:flex;flex-wrap:wrap;gap:8px}
+.import-thumb{max-width:100px;max-height:100px;border-radius:8px;border:1px solid rgba(94,200,255,.2);cursor:zoom-in;object-fit:cover}

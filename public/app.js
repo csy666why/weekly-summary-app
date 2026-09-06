@@ -1722,6 +1722,66 @@ async function testAI() {
 
 
 
+/* ---------- 导入文档生成小结 ---------- */
+let importImages = [];
+async function handleImportFile(file) {
+  if (!state.current) { toast("请先选择一份周小结", "err"); return; }
+  if (!file) return;
+  toast("正在解析文档…", "");
+  try {
+    const dataUrl = await readAsDataURL(file);
+    const r = await fetchJSON("/api/import-doc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: dataUrl, name: file.name, summaryId: state.current.id }) });
+    importImages = r.images || [];
+    showImportModal(r, file.name);
+    toast("解析完成", "ok");
+  } catch (e) {
+    toast("导入失败: " + e.message, "err");
+  }
+}
+function showImportModal(r, name) {
+  $("importFileInfo").textContent = name + " · 提取文字 " + (r.textLen || 0) + " 字 · 图片 " + (r.imageCount || 0) + " 张";
+  const w = $("importWarning");
+  w.textContent = r.warning || "";
+  $("importText").value = r.text || "";
+  const box = $("importImages");
+  box.innerHTML = "";
+  if (importImages.length) {
+    const sec = document.createElement("div");
+    sec.className = "import-sec mono small dim";
+    sec.textContent = "文档中的图片（已存入图片库，生成时会一起显示）";
+    box.appendChild(sec);
+    const grid = document.createElement("div");
+    grid.className = "import-img-grid";
+    for (const im of importImages) {
+      const el = document.createElement("img");
+      el.src = im.url;
+      el.title = im.name;
+      el.className = "import-thumb";
+      el.addEventListener("dblclick", () => openImgLightbox(im.url));
+      grid.appendChild(el);
+    }
+    box.appendChild(grid);
+  }
+  $("importModal").classList.remove("hidden");
+}
+function importToNotes() {
+  if (!state.current) return;
+  let text = $("importText").value.trim();
+  // 把文档图片以标记追加，AI 生成时会恢复为图片
+  if (importImages.length) {
+    const marks = importImages.map((im) => "{{img:" + im.id + "}}").join(" ");
+    text = text ? text + "\n\n现场照片/文档配图：" + marks : "现场照片/文档配图：" + marks;
+  }
+  state.current.notes = text;
+  $("notesInput").value = text;
+  state.edited.notes = true;
+  markDirty();
+  saveCurrent().catch(() => {});
+  $("importModal").classList.add("hidden");
+  toast("已填入原始记录，正在生成小结…", "ok");
+  setTimeout(() => { try { generateAI(); } catch (_) {} }, 300);
+}
+
 /* ---------- 图片 ---------- */
 function imageUrl(id) {
   return "/api/images/" + encodeURIComponent(id) + "?deviceId=" + encodeURIComponent(state.deviceId);
@@ -2290,6 +2350,13 @@ function bindEvents() {
   $("btnDelete").addEventListener("click", deleteSummary);
   $("btnExport").addEventListener("click", exportWord);
   $("btnImages").addEventListener("click", () => openImageModal(false, null));
+  $("btnImportDoc").addEventListener("click", () => $("importFileInput").click());
+  $("importFileInput").addEventListener("change", (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (f) handleImportFile(f);
+  });
+  $("btnImportToNotes").addEventListener("click", importToNotes);
   $("btnPreview").addEventListener("click", previewSummary);
   $("btnPickImage").addEventListener("click", () => $("imageFileInput").click());
   $("imageFileInput").addEventListener("change", (e) => {

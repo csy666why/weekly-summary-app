@@ -1722,6 +1722,43 @@ async function testAI() {
 
 
 
+
+/* ---------- 拖放 / 粘贴 导入文档（不依赖文件对话框） ---------- */
+let dragDepth = 0;
+window.addEventListener("dragenter", (e) => {
+  if (!e.dataTransfer || !Array.from(e.dataTransfer.types || []).includes("Files")) return;
+  e.preventDefault();
+  dragDepth++;
+  const ov = $("dropOverlay");
+  if (ov) ov.classList.remove("hidden");
+});
+window.addEventListener("dragover", (e) => { if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files")) e.preventDefault(); });
+window.addEventListener("dragleave", (e) => {
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (dragDepth === 0) { const ov = $("dropOverlay"); if (ov) ov.classList.add("hidden"); }
+});
+window.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dragDepth = 0;
+  const ov = $("dropOverlay");
+  if (ov) ov.classList.add("hidden");
+  const files = e.dataTransfer && e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
+  if (files.length) {
+    if (!state.current) { toast("请先选择一份周小结", "err"); return; }
+    handleImportFile(files[0]);
+  }
+});
+document.addEventListener("paste", (e) => {
+  if (!state.current) return;
+  const items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (const it of items) {
+    if (it.kind === "file") {
+      const f = it.getAsFile();
+      if (f) { e.preventDefault(); handleImportFile(f); return; }
+    }
+  }
+});
 /* ---------- 导入文档生成小结 ---------- */
 let importImages = [];
 async function handleImportFile(file) {

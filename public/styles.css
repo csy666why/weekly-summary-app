@@ -751,4 +751,7 @@ body.notice-open{--notice-h:34px}
 #importText:focus{border-color:#22d3ee;outline:none}
 .import-sec{margin:10px 0 6px}
 .import-img-grid{display:flex;flex-wrap:wrap;gap:8px}
-.import-thumb{max-width:100px;max-height:100px;border-radius:8px;border:1px solid rgba(94,200,255,.2);cursor:zoom-in;object-fit:cover}
+.import-thumb{max-width:100px;max-height:100px;border-radius:8px;border:1px solid rgba(94,200,255,.2);cursor:zoom-in;object-fit:cover}/* ---------- 拖放导入遮罩 ---------- */
+.drop-overlay{position:fixed;inset:0;z-index:400;background:rgba(4,10,20,.6);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;pointer-events:none}
+.drop-box{border:2px dashed #22d3ee;background:rgba(10,20,36,.9);padding:40px 60px;border-radius:16px;text-align:center;color:#22d3ee;font-size:20px;line-height:1.8}
+.drop-box span{color:#7e8ea8;font-size:13px}
